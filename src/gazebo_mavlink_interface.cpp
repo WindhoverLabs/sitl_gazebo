@@ -79,6 +79,13 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
     elevator_joint_ = NULL;
   }
 
+  if (_sdf->HasElement("rudder_joint")) {
+    rudder_joint_name_ = _sdf->GetElement("rudder_joint")->Get<std::string>();
+    rudder_joint_ = model_->GetJoint(rudder_joint_name_);
+  } else {
+    rudder_joint_ = NULL;
+  }
+
   if (_sdf->HasElement("propeller_joint")) {
     propeller_joint_name_ = _sdf->GetElement("propeller_joint")->Get<std::string>();
     propeller_joint_ = model_->GetJoint(propeller_joint_name_);
@@ -510,6 +517,10 @@ void GazeboMavlinkInterface::handle_message(mavlink_message_t *msg)
       left_elevon_joint_->SetAngle(0, roll);
       right_elevon_joint_->SetAngle(0, -roll);
       elevator_joint_->SetAngle(0, -pitch);
+    }
+
+    if (rudder_joint_ != NULL) {
+      rudder_joint_->SetAngle(0, inputs.control[7]);
     }
 
     received_first_referenc_ = true;

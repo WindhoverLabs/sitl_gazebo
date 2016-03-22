@@ -629,6 +629,10 @@
       <forward>1 0 0</forward>
       <upward>0 1 0</upward>
       <link_name>base_link</link_name>
+      <control_joint_name>
+        rudder_joint
+      </control_joint_name>
+      <control_joint_rad_to_cl>-4.0</control_joint_rad_to_cl>
     </plugin>
     <plugin name='front_right_motor_model' filename='librotors_gazebo_motor_model.so'>
       <robotNamespace>standard_vtol</robotNamespace>
@@ -741,6 +745,9 @@
       <elevator_joint>
         elevator_joint
       </elevator_joint>
+      <rudder_joint>
+        rudder_joint
+      </rudder_joint>
     </plugin>
     <static>0</static>
   </model>
