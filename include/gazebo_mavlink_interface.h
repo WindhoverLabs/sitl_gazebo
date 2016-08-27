@@ -24,10 +24,12 @@
 #include <gazebo/common/Plugin.hh>
 #include <gazebo/gazebo.hh>
 #include <gazebo/physics/physics.hh>
+#include <gazebo/transport/transport.hh>
+#include <gazebo/msgs/msgs.hh>
+#include <gazebo/msgs/gps.pb.h>
+
 #include "CommandMotorSpeed.pb.h"
 #include "MotorSpeed.pb.h"
-#include "gazebo/transport/transport.hh"
-#include "gazebo/msgs/msgs.hh"
 #include <stdio.h>
 
 #include "common.h"
@@ -71,6 +73,7 @@ static const std::string kDefaultMotorVelocityReferencePubTopic = "/gazebo/comma
 static const std::string kDefaultImuTopic = "/imu";
 static const std::string kDefaultLidarTopic = "/lidar/link/lidar";
 static const std::string kDefaultOpticalFlowTopic = "/camera/link/opticalFlow";
+static const std::string kDefaultGpsTopic = "/gps/link/gps";
 
 class GazeboMavlinkInterface : public ModelPlugin {
  public:
@@ -81,8 +84,9 @@ class GazeboMavlinkInterface : public ModelPlugin {
         namespace_(kDefaultNamespace),
         motor_velocity_reference_pub_topic_(kDefaultMotorVelocityReferencePubTopic),
         imu_sub_topic_(kDefaultImuTopic),
-        opticalFlow_sub_topic_(kDefaultOpticalFlowTopic),
         lidar_sub_topic_(kDefaultLidarTopic),
+        opticalFlow_sub_topic_(kDefaultOpticalFlowTopic),
+        gps_sub_topic_(kDefaultGpsTopic),
         model_{},
         world_(nullptr),
         left_elevon_joint_(nullptr),
@@ -144,6 +148,7 @@ class GazeboMavlinkInterface : public ModelPlugin {
   void ImuCallback(ImuPtr& imu_msg);
   void LidarCallback(LidarPtr& lidar_msg);
   void OpticalFlowCallback(OpticalFlowPtr& opticalFlow_msg);
+  void GpsCallback(ConstGPSPtr& gps_msg);
   void send_mavlink_message(const uint8_t msgid, const void *msg, uint8_t component_ID);
   void handle_message(mavlink_message_t *msg);
   void pollForMAVLinkMessages();
@@ -164,14 +169,14 @@ class GazeboMavlinkInterface : public ModelPlugin {
   transport::SubscriberPtr imu_sub_;
   transport::SubscriberPtr lidar_sub_;
   transport::SubscriberPtr opticalFlow_sub_;
+  transport::SubscriberPtr gps_sub_;
   std::string imu_sub_topic_;
   std::string lidar_sub_topic_;
   std::string opticalFlow_sub_topic_;
+  std::string gps_sub_topic_;
   
   common::Time last_time_;
-  common::Time last_gps_time_;
   common::Time last_actuator_time_;
-  double gps_update_interval_;
   double lat_rad;
   double lon_rad;
 
