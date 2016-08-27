@@ -54,6 +54,10 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
       opticalFlow_sub_topic_, opticalFlow_sub_topic_);
   getSdfParam<std::string>(_sdf, "gpsSubTopic",
       gps_sub_topic_, gps_sub_topic_);
+  getSdfParam<std::string>(_sdf, "magSubTopic",
+      mag_sub_topic_, mag_sub_topic_);
+  getSdfParam<std::string>(_sdf, "altSubTopic",
+      alt_sub_topic_, alt_sub_topic_);
 
   joints_.resize(n_out_max);
 
@@ -164,11 +168,12 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
       boost::bind(&GazeboMavlinkInterface::OnUpdate, this, _1));
 
   // Subscriber to IMU sensor_msgs::Imu Message and SITL message
-  imu_sub_ = node_handle_->Subscribe("~/" + model_->GetName() + imu_sub_topic_, &GazeboMavlinkInterface::ImuCallback, this);
+  imu_sub_ = node_handle_->Subscribe("~/" + model_->GetName() + imu_sub_topic_, &GazeboMavlinkInterface::IMUCallback, this);
   lidar_sub_ = node_handle_->Subscribe("~/" + model_->GetName() + lidar_sub_topic_, &GazeboMavlinkInterface::LidarCallback, this);
   opticalFlow_sub_ = node_handle_->Subscribe("~/" + model_->GetName() + opticalFlow_sub_topic_, &GazeboMavlinkInterface::OpticalFlowCallback, this);
   gps_sub_ = node_handle_->Subscribe("~/" + model_->GetName() + gps_sub_topic_, &GazeboMavlinkInterface::GpsCallback, this);
-  
+  mag_sub_ = node_handle_->Subscribe("~/" + model_->GetName() + mag_sub_topic_, &GazeboMavlinkInterface::MagCallback, this);
+ 
   // Publish gazebo's motor_speed message
   motor_velocity_reference_pub_ = node_handle_->Advertise<mav_msgs::msgs::CommandMotorSpeed>("~/" + model_->GetName() + motor_velocity_reference_pub_topic_, 1);
 
@@ -176,16 +181,6 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
   last_time_ = world_->GetSimTime();
 
   gravity_W_ = world_->GetPhysicsEngine()->GetGravity();
-
-  // Magnetic field data for Zurich from WMM2015 (10^5xnanoTesla (N, E, D))
-  //mag_W_ = {0.21523, 0.00771, 0.42741};
-  mag_W_.x = 0.21523;
-  // We set the world Y component to zero because we apply
-  // the declination based on the global position,
-  // and so we need to start without any offsets.
-  // The real value for Zurich would be 0.00771
-  mag_W_.y = 0.0;
-  mag_W_.z = 0.42741;
 
   //Create socket
   // udp socket data
@@ -294,47 +289,30 @@ void GazeboMavlinkInterface::send_mavlink_message(const uint8_t msgid, const voi
   }
 }
 
-void GazeboMavlinkInterface::ImuCallback(ImuPtr& imu_message) {
-
-  math::Pose T_W_I = model_->GetWorldPose();
-  math::Vector3 pos_W_I = T_W_I.pos;  // Use the models'world position for GPS and pressure alt.
-  
-  math::Quaternion C_W_I;
-  C_W_I.w = imu_message->orientation().w();
-  C_W_I.x = imu_message->orientation().x();
-  C_W_I.y = imu_message->orientation().y();
-  C_W_I.z = imu_message->orientation().z();
-
-  // gzerr << "got imu: " << C_W_I << "\n";
-  float declination = get_mag_declination(lat_rad, lon_rad);
-
-  math::Quaternion C_D_I(0.0, 0.0, declination);
-
-  math::Vector3 mag_decl = C_D_I.RotateVectorReverse(mag_W_);
-
-  // TODO replace mag_W_ in the line below with mag_decl
-
-  math::Vector3 mag_I = C_W_I.RotateVectorReverse(mag_decl); // TODO: Add noise based on bais and variance like for imu and gyro
-  math::Vector3 body_vel = C_W_I.RotateVectorReverse(model_->GetWorldLinearVel());
-  
-  standard_normal_distribution_ = std::normal_distribution<float>(0, 0.01f);
-
-  float mag_noise = standard_normal_distribution_(random_generator_);
+void GazeboMavlinkInterface::IMUCallback(ConstIMUPtr& imu_message) {
+  //math::Quaternion C_W_I;
+  //C_W_I.w = imu_message->orientation().w();
+  //C_W_I.x = imu_message->orientation().x();
+  //C_W_I.y = imu_message->orientation().y();
+  //C_W_I.z = imu_message->orientation().z();
+  //math::Vector3 body_vel = C_W_I.RotateVectorReverse(model_->GetWorldLinearVel());
 
   mavlink_hil_sensor_t sensor_msg;
-  sensor_msg.time_usec = world_->GetSimTime().nsec*1000;
+  sensor_msg.time_usec = imu_message->stamp().nsec()*1e3;
   sensor_msg.xacc = imu_message->linear_acceleration().x();
   sensor_msg.yacc = imu_message->linear_acceleration().y();
   sensor_msg.zacc = imu_message->linear_acceleration().z();
   sensor_msg.xgyro = imu_message->angular_velocity().x();
   sensor_msg.ygyro = imu_message->angular_velocity().y();
   sensor_msg.zgyro = imu_message->angular_velocity().z();
-  sensor_msg.xmag = mag_I.x + mag_noise;
-  sensor_msg.ymag = mag_I.y + mag_noise;
-  sensor_msg.zmag = mag_I.z + mag_noise;
+  sensor_msg.xmag = mag_I_.x;
+  sensor_msg.ymag = mag_I_.y;
+  sensor_msg.zmag = mag_I_.z;
   sensor_msg.abs_pressure = 0.0;
-  sensor_msg.diff_pressure = 0.5*1.2754*(body_vel.z + body_vel.x)*(body_vel.z + body_vel.x) / 100;
-  sensor_msg.pressure_alt = pos_W_I.z;
+  //float q = 1.2754;
+  //sensor_msg.diff_pressure = 0.5*q*(body_vel.z*body_vel.z + body_vel.x*body_vel.x) / 100;
+  sensor_msg.diff_pressure = 0;
+  sensor_msg.pressure_alt = pressure_alt_;
   sensor_msg.temperature = 0.0;
   sensor_msg.fields_updated = 4095;
 
@@ -384,7 +362,6 @@ void GazeboMavlinkInterface::OpticalFlowCallback(OpticalFlowPtr& opticalFlow_mes
 
 void GazeboMavlinkInterface::GpsCallback(ConstGPSPtr& gz_msg) {
   float rad2deg = 180.0/M_PI;
-  float deg2rad = M_PI/180.0;
   float speed = gz_msg->velocity_north()*gz_msg->velocity_north() + 
     gz_msg->velocity_east()*gz_msg->velocity_east() + 
     gz_msg->velocity_up()*gz_msg->velocity_up(); 
@@ -408,9 +385,15 @@ void GazeboMavlinkInterface::GpsCallback(ConstGPSPtr& gz_msg) {
   send_mavlink_message(MAVLINK_MSG_ID_HIL_GPS, &mav_msg, 200);
 }
 
+void GazeboMavlinkInterface::MagCallback(ConstMagnetometerPtr& gz_msg) {
+  mag_I_.x = gz_msg->field_tesla().x();
+  mag_I_.y = gz_msg->field_tesla().y();
+  mag_I_.z = gz_msg->field_tesla().z();
+}
 
-
-
+void GazeboMavlinkInterface::AltCallback(ConstAltimeterPtr& gz_msg) {
+  pressure_alt_ = gz_msg->vertical_position();
+}
 
 void GazeboMavlinkInterface::pollForMAVLinkMessages()
 {
@@ -421,7 +404,7 @@ void GazeboMavlinkInterface::pollForMAVLinkMessages()
     if (len > 0) {
       mavlink_message_t msg;
       mavlink_status_t status;
-      for (unsigned i = 0; i < len; ++i)
+      for (int i = 0; i < len; ++i)
       {
         if (mavlink_parse_char(MAVLINK_COMM_0, _buf[i], &msg, &status))
         {

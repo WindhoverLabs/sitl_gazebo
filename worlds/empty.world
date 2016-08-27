@@ -1,6 +1,18 @@
 <?xml version="1.0" ?>
 <sdf version="1.5">
   <world name="default">
+
+    <!--Zurich Irchel Park-->
+    <spherical_coordinates>
+      <latitude_deg> 47.397742 </latitude_deg>
+      <longitude_deg> 8.545594 </longitude_deg>
+      <elevation>488.0</elevation>
+	  <heading_deg>0.0</heading_deg>
+    </spherical_coordinates>
+
+  	<!-- Magnetic field data for Zurich from WMM2015 (10^5xnanoTesla (N, E, D))-->
+	<magnetic_field>0.21523 0.00771 0.42741</magnetic_field>
+
     <!-- A global light source -->
     <include>
       <uri>model://sun</uri>

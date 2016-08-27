@@ -27,6 +27,9 @@
 #include <gazebo/transport/transport.hh>
 #include <gazebo/msgs/msgs.hh>
 #include <gazebo/msgs/gps.pb.h>
+#include <gazebo/msgs/magnetometer.pb.h>
+#include <gazebo/msgs/altimeter.pb.h>
+#include <gazebo/msgs/imu.pb.h>
 
 #include "CommandMotorSpeed.pb.h"
 #include "MotorSpeed.pb.h"
@@ -59,7 +62,6 @@ static const uint32_t kDefaultMavlinkUdpPort = 14560;
 namespace gazebo {
 
 typedef const boost::shared_ptr<const mav_msgs::msgs::CommandMotorSpeed> CommandMotorSpeedPtr;
-typedef const boost::shared_ptr<const sensor_msgs::msgs::Imu> ImuPtr;
 typedef const boost::shared_ptr<const lidar_msgs::msgs::lidar> LidarPtr;
 typedef const boost::shared_ptr<const opticalFlow_msgs::msgs::opticalFlow> OpticalFlowPtr;
 
@@ -74,6 +76,8 @@ static const std::string kDefaultImuTopic = "/imu";
 static const std::string kDefaultLidarTopic = "/lidar/link/lidar";
 static const std::string kDefaultOpticalFlowTopic = "/camera/link/opticalFlow";
 static const std::string kDefaultGpsTopic = "/gps/link/gps";
+static const std::string kDefaultMagTopic = "/mag/link/mag";
+static const std::string kDefaultAltTopic = "/baro/link/baro";
 
 class GazeboMavlinkInterface : public ModelPlugin {
  public:
@@ -87,6 +91,8 @@ class GazeboMavlinkInterface : public ModelPlugin {
         lidar_sub_topic_(kDefaultLidarTopic),
         opticalFlow_sub_topic_(kDefaultOpticalFlowTopic),
         gps_sub_topic_(kDefaultGpsTopic),
+        mag_sub_topic_(kDefaultMagTopic),
+        alt_sub_topic_(kDefaultAltTopic),
         model_{},
         world_(nullptr),
         left_elevon_joint_(nullptr),
@@ -104,6 +110,10 @@ class GazeboMavlinkInterface : public ModelPlugin {
         input_index{},
         lat_rad(0.0),
         lon_rad(0.0),
+	  	gravity_W_(),
+	  	velocity_prev_W_(),
+	  	mag_I_(),
+	  	pressure_alt_(0),
         mavlink_udp_port_(kDefaultMavlinkUdpPort)
         {}
   ~GazeboMavlinkInterface();
@@ -145,10 +155,12 @@ class GazeboMavlinkInterface : public ModelPlugin {
 
   boost::thread callback_queue_thread_;
   void QueueThread();
-  void ImuCallback(ImuPtr& imu_msg);
+  void IMUCallback(ConstIMUPtr& imu_msg);
   void LidarCallback(LidarPtr& lidar_msg);
   void OpticalFlowCallback(OpticalFlowPtr& opticalFlow_msg);
   void GpsCallback(ConstGPSPtr& gps_msg);
+  void MagCallback(ConstMagnetometerPtr& mag_msg);
+  void AltCallback(ConstAltimeterPtr& alt_msg);
   void send_mavlink_message(const uint8_t msgid, const void *msg, uint8_t component_ID);
   void handle_message(mavlink_message_t *msg);
   void pollForMAVLinkMessages();
@@ -170,10 +182,14 @@ class GazeboMavlinkInterface : public ModelPlugin {
   transport::SubscriberPtr lidar_sub_;
   transport::SubscriberPtr opticalFlow_sub_;
   transport::SubscriberPtr gps_sub_;
+  transport::SubscriberPtr mag_sub_;
+  transport::SubscriberPtr alt_sub_;
   std::string imu_sub_topic_;
   std::string lidar_sub_topic_;
   std::string opticalFlow_sub_topic_;
   std::string gps_sub_topic_;
+  std::string mag_sub_topic_;
+  std::string alt_sub_topic_;
   
   common::Time last_time_;
   common::Time last_actuator_time_;
@@ -182,7 +198,8 @@ class GazeboMavlinkInterface : public ModelPlugin {
 
   math::Vector3 gravity_W_;
   math::Vector3 velocity_prev_W_;
-  math::Vector3 mag_W_;
+  math::Vector3 mag_I_;
+  float pressure_alt_;
 
   std::default_random_engine random_generator_;
   std::normal_distribution<float> standard_normal_distribution_;

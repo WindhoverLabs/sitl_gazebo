@@ -181,8 +181,8 @@ void OpticalFlowPlugin::OnNewFrame(const unsigned char * _image,
   cornerSubPix(old_gray, featuresPrevious, winSize, zeroZone, criteria);*/
 
   //calc diff
-  int n_features = 0;
-  for (int i = 0; i < featuresNextPos.size(); i++) {
+  size_t n_features = 0;
+  for (size_t i = 0; i < featuresNextPos.size(); i++) {
     if (featuresFound[i] == true) {
         flowX_[i] =  featuresNextPos[i].x - featuresPrevious[i].x;
         flowY_[i] =  featuresNextPos[i].y - featuresPrevious[i].y;

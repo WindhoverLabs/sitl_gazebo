@@ -91,6 +91,9 @@ add_definitions(
   -std=c++11
   # Shut up warnings about std::binder1st, std::binder2nd.
   -Wno-deprecated-declarations
+  -Wextra
+  -Wall
+  -Wuninitialized
 )
 
 set(GAZEBO_MSG_INCLUDE_DIRS)
