@@ -153,7 +153,7 @@ void OpticalFlowPlugin::OnNewFrame(const unsigned char * _image,
 #endif
   //printf("render rate raw: %10.2f\n", rate);
   if (!isfinite(rate))
-       rate =  30.0;
+       rate =  100.0;
   float dt = 1.0 / rate;
 
 
@@ -218,11 +218,9 @@ void OpticalFlowPlugin::OnNewFrame(const unsigned char * _image,
   opticalFlow_pub_->Publish(opticalFlow_message);
 
 
-  // TODO handle case when more than one vehicles are using the plugin, then
-  // update rate will be n_vehicle*rate, need to store in vehicle structure somehow.
   timer_.stop();
   float rate_real = 1.0e9/timer_.elapsed().wall;
-  if (rate_real < 0.75*rate) {
+  if (rate_real < 0.5*rate) {
     printf("!!! gazebo opticaal flow plugin running slow: %10.0f Hz\n", rate_real);
   }
   timer_.start();
