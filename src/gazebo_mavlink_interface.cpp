@@ -449,6 +449,14 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
 
   fds[0].fd = _fd;
   fds[0].events = POLLIN;
+
+  num_sim_steps_per_mavlink_msg_ = 0;
+  if (_sdf->HasElement("sim_steps_per_mavlink_controls_msg")) {
+    num_sim_steps_per_mavlink_msg_ = _sdf->GetElement("sim_steps_per_mavlink_controls_msg")->Get<int>();
+  }
+  num_sim_steps_ = 0;
+  got_actuator_controls_msg_ = false;
+  armed_ = false;
 }
 
 // This gets called by the world update start event.
@@ -457,7 +465,27 @@ void GazeboMavlinkInterface::OnUpdate(const common::UpdateInfo& /*_info*/) {
   common::Time current_time = world_->GetSimTime();
   double dt = (current_time - last_time_).Double();
 
-  pollForMAVLinkMessages(dt, 1000);
+  if (num_sim_steps_per_mavlink_msg_) {
+    num_sim_steps_ = (num_sim_steps_ + 1) % num_sim_steps_per_mavlink_msg_;
+  }
+
+  while(true) {
+
+    pollForMAVLinkMessages(dt, 0);
+
+    if (num_sim_steps_per_mavlink_msg_ != 0 && armed_ && num_sim_steps_ == 0) {
+      // lock-step: we need to wait for a mavlink control message
+      if (got_actuator_controls_msg_) {
+        break;
+      } else {
+        usleep(2000);
+      }
+    } else {
+      break;
+    }
+  }
+
+  got_actuator_controls_msg_ = false;
 
   handle_control(dt);
 
@@ -671,8 +699,7 @@ void GazeboMavlinkInterface::OpticalFlowCallback(OpticalFlowPtr& opticalFlow_mes
 
 void GazeboMavlinkInterface::pollForMAVLinkMessages(double _dt, uint32_t _timeoutMs)
 {
-  // poll
-  ::poll(&fds[0], (sizeof(fds[0])/sizeof(fds[0])), 0);
+  ::poll(&fds[0], (sizeof(fds[0])/sizeof(fds[0])), _timeoutMs);
 
   if (fds[0].revents & POLLIN) {
     int len = recvfrom(_fd, _buf, sizeof(_buf), 0, (struct sockaddr *)&_srcaddr, &_addrlen);
@@ -697,11 +724,8 @@ void GazeboMavlinkInterface::handle_message(mavlink_message_t *msg)
   case MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS:
     mavlink_hil_actuator_controls_t controls;
     mavlink_msg_hil_actuator_controls_decode(msg, &controls);
-    bool armed = false;
 
-    if ((controls.mode & MAV_MODE_FLAG_SAFETY_ARMED) > 0) {
-      armed = true;
-    }
+    armed_ = controls.mode & MAV_MODE_FLAG_SAFETY_ARMED;
 
     last_actuator_time_ = world_->GetSimTime();
 
@@ -712,7 +736,7 @@ void GazeboMavlinkInterface::handle_message(mavlink_message_t *msg)
     // set rotor speeds, controller targets
     input_reference_.resize(n_out_max);
     for (int i = 0; i < input_reference_.size(); i++) {
-      if (armed) {
+      if (armed_) {
         input_reference_[i] = (controls.controls[input_index_[i]] + input_offset_[i])
           * input_scaling_[i] + zero_position_armed_[i];
         // if (joints_[i])
@@ -723,6 +747,7 @@ void GazeboMavlinkInterface::handle_message(mavlink_message_t *msg)
     }
 
     received_first_referenc_ = true;
+    got_actuator_controls_msg_ = true;
     break;
   }
 }

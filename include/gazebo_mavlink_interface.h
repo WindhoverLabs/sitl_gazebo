@@ -209,5 +209,10 @@ class GazeboMavlinkInterface : public ModelPlugin {
   in_addr_t mavlink_addr_;
   int mavlink_udp_port_;
 
+  int num_sim_steps_per_mavlink_msg_;
+  int num_sim_steps_;
+  bool got_actuator_controls_msg_;
+  bool armed_;
+
   };
 }
