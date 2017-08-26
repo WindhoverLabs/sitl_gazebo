@@ -699,6 +699,11 @@ void GazeboMavlinkInterface::ImuCallback(ImuPtr& imu_message) {
   math::Vector3 vel_n = q_ng.RotateVector(model_->GetWorldLinearVel());
   math::Vector3 omega_nb_b = q_br.RotateVector(model_->GetRelativeAngularVel());
 
+  // set a wind speed
+  // TODO make this a parameter and tie into wind plugin for force
+  math::Vector3 wind_n(1, 0, 0);
+  math::Vector3 v_true_b = vel_b - q_nb.RotateVectorReverse(wind_n);
+
   standard_normal_distribution_ = std::normal_distribution<float>(0, 0.01f);
   math::Vector3 mag_noise_b(
     standard_normal_distribution_(random_generator_),
@@ -728,7 +733,7 @@ void GazeboMavlinkInterface::ImuCallback(ImuPtr& imu_message) {
   sensor_msg.zmag = mag_b.z;
   sensor_msg.abs_pressure = 0.0;
   float rho = 1.2754f; // density of air, TODO why is this not 1.225 as given by std. atmos.
-  sensor_msg.diff_pressure = 0.5f*rho*vel_b.x*vel_b.x / 100;
+  sensor_msg.diff_pressure = 0.5f*rho*v_true_b.x*v_true_b.x / 100;
 
   float p1, p2;
 
@@ -778,8 +783,8 @@ void GazeboMavlinkInterface::ImuCallback(ImuPtr& imu_message) {
   hil_state_quat.vz = vel_n.z * 100;
 
   // assumed indicated airspeed due to flow aligned with pitot (body x)
-  hil_state_quat.ind_airspeed = vel_b.x;
-  hil_state_quat.true_airspeed = model_->GetWorldLinearVel().GetLength() * 100; //no wind simulated
+  hil_state_quat.ind_airspeed = v_true_b.x * 100;
+  hil_state_quat.true_airspeed = v_true_b.GetLength() * 100;
 
   hil_state_quat.xacc = accel_true_b.x * 1000;
   hil_state_quat.yacc = accel_true_b.y * 1000;
