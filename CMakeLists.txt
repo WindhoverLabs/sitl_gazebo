@@ -20,7 +20,7 @@ include(GNUInstallDirs)
 list(APPEND CMAKE_MODULE_PATH /usr/local/share/cmake/Modules)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
-option(BUILD_GSTREAMER_PLUGIN "enable gstreamer plugin" "OFF")
+option(BUILD_GSTREAMER_PLUGIN "enable gstreamer plugin" "ON")
 
 ## System dependencies are found with CMake's conventions
 find_package(PkgConfig REQUIRED)

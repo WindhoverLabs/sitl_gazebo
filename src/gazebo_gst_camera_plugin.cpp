@@ -91,12 +91,12 @@ void GstCameraPlugin::startGstThread() {
 
   GstElement* dataSrc = gst_element_factory_make("appsrc", "AppSrc");
   GstElement* testSrc = gst_element_factory_make("videotestsrc", "FileSrc");
-  GstElement* conv  = gst_element_factory_make("videoconvert", "Convert");
-  GstElement* encoder = gst_element_factory_make("x264enc", "AvcEncoder");
-  GstElement* parser  = gst_element_factory_make("h264parse", "Parser");
-  GstElement* payload = gst_element_factory_make("rtph264pay", "PayLoad");
+  GstElement* scale = gst_element_factory_make("videoscale", "Scale");
+  GstElement* capsfilter = gst_element_factory_make("capsfilter", "Caps");
+  GstElement* encoder = gst_element_factory_make("jpegenc", "AvcEncoder");
+  GstElement* multimux = gst_element_factory_make("multipartmux", "MultiMux");
   GstElement* sink  = gst_element_factory_make("udpsink", "UdpSink");
-  if (!dataSrc || !testSrc || !conv || !encoder || !parser || !payload || !sink) {
+  if (!dataSrc || !testSrc || !scale || !capsfilter || !encoder || !multimux || !sink) {
     gzerr << "ERR: Create elements failed. \n";
     return;
   }
@@ -104,6 +104,15 @@ void GstCameraPlugin::startGstThread() {
 // gzerr <<"width"<< this->width<<"\n";
 // gzerr <<"height"<< this->height<<"\n";
 // gzerr <<"rate"<< this->rate<<"\n";
+
+  // Config video scale capsfilter
+  g_object_set(G_OBJECT(capsfilter), "caps",
+      gst_caps_new_simple ("video/x-raw",
+      "format", G_TYPE_STRING, "RGB",
+      "width", G_TYPE_INT, 320,
+      "height", G_TYPE_INT, 180, NULL),
+      //"framerate", GST_TYPE_FRACTION, 30, 1, NULL),
+      NULL);
 
   // Config src
   g_object_set(G_OBJECT(dataSrc), "caps",
@@ -115,16 +124,9 @@ void GstCameraPlugin::startGstThread() {
       NULL),
       "is-live", TRUE,
       NULL);
-
-  // Config encoder
-  g_object_set(G_OBJECT(encoder), "bitrate", 800, NULL);
-  g_object_set(G_OBJECT(encoder), "speed-preset", 2, NULL); //lower = faster, 6=medium
-  //g_object_set(G_OBJECT(encoder), "tune", "zerolatency", NULL);
-  //g_object_set(G_OBJECT(encoder), "low-latency", 1, NULL);
-  //g_object_set(G_OBJECT(encoder), "control-rate", 2, NULL);
-
-  // Config payload
-  g_object_set(G_OBJECT(payload), "config-interval", 1, NULL);
+  
+  // Config multipartmux
+  g_object_set(G_OBJECT(multimux), "boundary", "******", NULL);
 
   // Config udpsink
   g_object_set(G_OBJECT(sink), "host", "127.0.0.1", NULL);
@@ -133,10 +135,10 @@ void GstCameraPlugin::startGstThread() {
   //g_object_set(G_OBJECT(sink), "async", false, NULL);
 
   // Connect all elements to pipeline
-  gst_bin_add_many(GST_BIN(pipeline), dataSrc, conv, encoder, parser, payload, sink, NULL);
-
+  gst_bin_add_many(GST_BIN(pipeline), dataSrc, scale, capsfilter, encoder, multimux, sink, NULL);
+  
   // Link all elements
-  if (gst_element_link_many(dataSrc, conv, encoder, parser, payload, sink, NULL) != TRUE) {
+  if (gst_element_link_many(dataSrc, scale, capsfilter, encoder, multimux, sink, NULL) != TRUE) {
     gzerr << "ERR: Link all the elements failed. \n";
     return;
   }
@@ -230,7 +232,7 @@ void GstCameraPlugin::Load(sensors::SensorPtr sensor, sdf::ElementPtr sdf)
 #endif
 
  if (!isfinite(this->rate)) {
-   this->rate =  60.0;
+   this->rate =  30.0;
  }
 
   if (sdf->HasElement("robotNamespace"))
