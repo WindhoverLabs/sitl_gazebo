@@ -743,7 +743,8 @@ void GazeboMavlinkInterface::ImuCallback(ImuPtr& imu_message) {
 
   sensor_msg.pressure_alt = (std::isfinite(alt_n)) ? alt_n : -pos_n.z;
   sensor_msg.temperature = 0.0;
-  sensor_msg.fields_updated = 4095;
+  /* 4095 is bits 0-11, 4096 is bit 12 */
+  sensor_msg.fields_updated = 4095; // + 4096;
 
   //accumulate gyro measurements that are needed for the optical flow message
   static uint32_t last_dt_us = sensor_msg.time_usec;
