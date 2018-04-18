@@ -795,9 +795,9 @@ void GazeboMavlinkInterface::ImuCallback(ImuPtr& imu_message) {
 void GazeboMavlinkInterface::LidarCallback(LidarPtr& lidar_message) {
   mavlink_distance_sensor_t sensor_msg;
   sensor_msg.time_boot_ms = lidar_message->time_msec();
-  sensor_msg.min_distance = lidar_message->min_distance();
-  sensor_msg.max_distance = lidar_message->max_distance();
-  sensor_msg.current_distance = lidar_message->current_distance();
+  sensor_msg.min_distance = lidar_message->min_distance() * 100.0;
+  sensor_msg.max_distance = lidar_message->max_distance() * 100.0;
+  sensor_msg.current_distance = lidar_message->current_distance() * 100.0;
   sensor_msg.type = 0;
   sensor_msg.id = 0;
   sensor_msg.orientation = 25; //downward facing
