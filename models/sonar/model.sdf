@@ -24,25 +24,21 @@
         </material>
       </visual>
         <sensor name="sonar" type="sonar">
-          <pose>0 0 0 0 0 0</pose>
+          <pose>0 0 0 1.5707 -1.5707 1.5707</pose>
           <sonar>
-            <min>0.35</min>
-            <max>45.0</max>
-            <radius>2.33974388395</radius>
+            <min>0.02</min>
+            <max>5.0</max>
+            <radius>1.33974388395</radius>
           </sonar>
           <always_on>1</always_on>
-          <update_rate>125</update_rate>
+          <update_rate>20</update_rate>
           <visualize>true</visualize>
     <plugin name="SonarPlugin" filename="libgazebo_sonar_plugin.so"/>
       <robotNamespace></robotNamespace>
         <always_on>1</always_on>
-        <update_rate>125</update_rate>
+        <update_rate>20</update_rate>
         <visualize>true</visualize>
         </sensor>
       </link>
     </model>
   </sdf>
-
-
-
-
