@@ -1,3 +1,4 @@
+<?xml version="1.0" ?>
 <sdf version='1.6'>
   <world name='default'>
     <light name='sun' type='directional'>
@@ -57,7 +58,7 @@
           </material>
         </visual>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
     </model>
@@ -119,7 +120,7 @@
         <gravity>1</gravity>
         <velocity_decay/>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <link name='cgo3_mount_link'>
@@ -151,7 +152,7 @@
           </material>
         </visual>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <joint name='cgo3_mount_joint' type='revolute'>
@@ -212,7 +213,7 @@
           </material>
         </visual>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <joint name='cgo3_vertical_arm_joint' type='revolute'>
@@ -273,7 +274,7 @@
           </material>
         </visual>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <joint name='cgo3_horizontal_arm_joint' type='revolute'>
@@ -395,7 +396,7 @@
           </plugin>
         </sensor>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <joint name='cgo3_camera_joint' type='revolute'>
@@ -516,7 +517,7 @@
           </material>
         </visual>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <joint name='left_leg_joint' type='revolute'>
@@ -640,7 +641,7 @@
           </material>
         </visual>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <joint name='right_leg_joint' type='revolute'>
@@ -689,7 +690,7 @@
           </inertia>
         </inertial>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <joint name='typhoon_h480/imu_joint' type='revolute'>
@@ -764,7 +765,7 @@
         <gravity>1</gravity>
         <velocity_decay/>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <joint name='rotor_3_joint' type='revolute'>
@@ -849,7 +850,7 @@
         <gravity>1</gravity>
         <velocity_decay/>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <joint name='rotor_0_joint' type='revolute'>
@@ -934,7 +935,7 @@
         <gravity>1</gravity>
         <velocity_decay/>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <joint name='rotor_4_joint' type='revolute'>
@@ -1019,7 +1020,7 @@
         <gravity>1</gravity>
         <velocity_decay/>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <joint name='rotor_1_joint' type='revolute'>
@@ -1104,7 +1105,7 @@
         <gravity>1</gravity>
         <velocity_decay/>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <joint name='rotor_5_joint' type='revolute'>
@@ -1189,7 +1190,7 @@
         <gravity>1</gravity>
         <velocity_decay/>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <joint name='rotor_2_joint' type='revolute'>
@@ -1263,7 +1264,7 @@
           <visualize>1</visualize>
         </sensor>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <joint name='sonar_joint' type='revolute'>
@@ -1338,7 +1339,7 @@
         </sensor>
         <pose frame=''>0.05 0 -0.08 3.14159 0.001593 3.14159</pose>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <joint name='lidar_joint' type='fixed'>
@@ -1647,7 +1648,7 @@
           </material>
         </visual>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
     </model>
@@ -1744,7 +1745,7 @@
           </material>
         </visual>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <pose frame=''>3.32318 -11.8254 0 0 -0 0</pose>
@@ -1807,7 +1808,7 @@
           </material>
         </visual>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <pose frame=''>11.6166 -9.2063 0 0 -0 0</pose>
@@ -1845,7 +1846,7 @@
           </geometry>
         </visual>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <pose frame=''>9.93253 -15.8453 0 0 -0 0</pose>
@@ -1915,7 +1916,7 @@
           </geometry>
         </visual>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <pose frame=''>15.9227 -11.9246 0 0 -0 0</pose>
@@ -2011,7 +2012,7 @@
           </geometry>
         </visual>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
     </model>
@@ -2082,7 +2083,7 @@
           </geometry>
         </visual>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <link name='grass_plane'>
@@ -2128,7 +2129,7 @@
           </material>
         </visual>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
       <pose frame=''>16.2675 -10.652 0 0 -0 0</pose>
@@ -2335,5 +2336,42 @@
         <projection_type>perspective</projection_type>
       </camera>
     </gui>
+    <!-- Set wind linear velocity -->
+    <wind>
+      <linear_velocity>0 0 0</linear_velocity>
+    </wind>
+    <!-- Load the plugin for the wind -->
+    <plugin name="wind" filename="libWindPlugin.so">
+      <horizontal>
+        <magnitude>
+          <time_for_rise>10</time_for_rise>
+          <sin>
+            <amplitude_percent>0.05</amplitude_percent>
+            <period>60</period>
+          </sin>
+          <noise type="gaussian">
+           <mean>0</mean>
+           <stddev>0.0002</stddev>
+          </noise>
+        </magnitude>
+        <direction>
+          <time_for_rise>30</time_for_rise>
+          <sin>
+            <amplitude>5</amplitude>
+            <period>20</period>
+          </sin>
+          <noise type="gaussian">
+           <mean>0</mean>
+           <stddev>0.03</stddev>
+          </noise>
+        </direction>
+      </horizontal>
+      <vertical>
+        <noise type="gaussian">
+         <mean>0</mean>
+         <stddev>0.03</stddev>
+        </noise>
+      </vertical>
+    </plugin>
   </world>
 </sdf>
