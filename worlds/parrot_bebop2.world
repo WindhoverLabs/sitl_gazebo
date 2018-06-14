@@ -16,10 +16,6 @@
     <include>
       <uri>model://bebop2</uri>
     </include>
-    <include>
-      <uri>model://px4flow</uri>
-      <pose>0.05 0 -0.05 0 0 0</pose>
-    </include>
     <model name='ground_plane'>
       <static>1</static>
       <link name='link'>
