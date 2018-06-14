@@ -80,6 +80,80 @@
         <use_parent_model_frame>1</use_parent_model_frame>
       </axis>
     </joint>
+    <link name='cgo3_camera_link'>
+        <inertial>
+          <pose frame=''>0 0 0 0 -0 0</pose>
+          <mass>0.1</mass>
+          <inertia>
+            <ixx>0.001</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.001</iyy>
+            <iyz>0</iyz>
+            <izz>0.001</izz>
+          </inertia>
+        </inertial>
+        <sensor name='camera' type='camera'>
+          <pose frame=''>0.11 0 0 0 -0 0</pose>
+          <camera name='__default__'>
+            <horizontal_fov>2</horizontal_fov>
+            <image>
+              <format>R8G8B8</format>
+              <width>640</width>
+              <height>360</height>
+            </image>
+            <clip>
+              <near>0.05</near>
+              <far>15000</far>
+            </clip>
+          </camera>
+          <always_on>1</always_on>
+          <update_rate>10</update_rate>
+          <visualize>0</visualize>
+          <plugin name='GstCameraPlugin' filename='libgazebo_gst_camera_plugin.so'>
+            <robotNamespace/>
+            <udpPort>5600</udpPort>
+          </plugin>
+          <plugin name='GeotaggedImagesPlugin' filename='libgazebo_geotagged_images_plugin.so'>
+            <robotNamespace/>
+            <interval>1</interval>
+            <width>3840</width>
+            <height>2160</height>
+          </plugin>
+        </sensor>
+        <self_collide>0</self_collide>
+        <enable_wind>0</enable_wind>
+        <kinematic>0</kinematic>
+      </link>
+    <joint name='cgo3_camera_joint' type='revolute'>
+        <child>cgo3_camera_link</child>
+        <parent>base_link</parent>
+        <pose frame=''>0 0 0 0 -0 0</pose>
+        <axis>
+          <xyz>0 0 0</xyz>
+          <limit>
+            <lower>-0.0872665</lower>
+            <upper>1.5708</upper>
+            <effort>100</effort>
+            <velocity>-1</velocity>
+          </limit>
+          <dynamics>
+            <damping>0.1</damping>
+            <spring_reference>0</spring_reference>
+            <spring_stiffness>0</spring_stiffness>
+          </dynamics>
+          <use_parent_model_frame>1</use_parent_model_frame>
+        </axis>
+        <physics>
+          <ode>
+            <implicit_spring_damper>1</implicit_spring_damper>
+            <limit>
+              <cfm>0.1</cfm>
+              <erp>0.2</erp>
+            </limit>
+          </ode>
+        </physics>
+      </joint>
     <link name='rotor_0'>
       <pose frame=''>0.08456 -0.11435 -0.00501 0 -0 0</pose>
       <inertial>
