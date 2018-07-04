@@ -106,8 +106,7 @@ this->camera = this->parentSensor->Camera();
 #endif
 
   focal_length_ = (this->width/2)/tan(hfov_/2);
-  gzerr << "----------" << focal_length_<<"\n";
-  gzerr << "----------" << first_frame_time_<<"\n";
+
 
   if (this->width != 64 || this->height != 64) {
     gzerr << "[gazebo_optical_flow_plugin] Incorrect image size, must by 64 x 64.\n";
