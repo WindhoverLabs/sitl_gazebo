@@ -828,6 +828,7 @@ void GazeboMavlinkInterface::OpticalFlowCallback(OpticalFlowPtr& opticalFlow_mes
   sensor_msg.time_delta_distance_us = opticalFlow_message->time_delta_distance_us();
   sensor_msg.distance = optflow_distance;
 
+
   //reset gyro integral
   optflow_gyro.Set();
 
