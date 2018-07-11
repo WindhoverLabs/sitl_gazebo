@@ -69,7 +69,7 @@ static const std::string kDefaultMotorVelocityReferencePubTopic = "/gazebo/comma
 
 static const std::string kDefaultImuTopic = "/imu";
 static const std::string kDefaultLidarTopic = "/lidar/link/lidar";
-static const std::string kDefaultOpticalFlowTopic = "/camera/link/opticalFlow";
+static const std::string kDefaultOpticalFlowTopic = "/flow_link/opticalFlow";
 static const std::string kDefaultSonarTopic = "/sonar_model/link/sonar";
 
 class GazeboMavlinkInterface : public ModelPlugin {
