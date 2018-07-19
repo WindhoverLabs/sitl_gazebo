@@ -753,7 +753,6 @@ void GazeboMavlinkInterface::ImuCallback(ImuPtr& imu_message) {
     optflow_gyro += gyro_b * (dt_us / 1000000.0f);
     last_dt_us = sensor_msg.time_usec;
   }
-
   mavlink_message_t msg;
   mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &sensor_msg);
   send_mavlink_message(&msg);
@@ -827,7 +826,6 @@ void GazeboMavlinkInterface::OpticalFlowCallback(OpticalFlowPtr& opticalFlow_mes
   sensor_msg.quality = opticalFlow_message->quality();
   sensor_msg.time_delta_distance_us = opticalFlow_message->time_delta_distance_us();
   sensor_msg.distance = optflow_distance;
-
 
   //reset gyro integral
   optflow_gyro.Set();

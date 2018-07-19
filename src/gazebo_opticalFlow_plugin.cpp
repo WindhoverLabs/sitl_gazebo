@@ -200,7 +200,6 @@ void OpticalFlowPlugin::OnNewFrame(const unsigned char * _image,
     opticalFlow_message.set_quality(quality);
     opticalFlow_message.set_time_delta_distance_us(0);
     opticalFlow_message.set_distance(0.0f); //get real values in gazebo_mavlink_interface.cpp  gzerr<<"TIME :   "<< sensor_msg.time_usec <<"  \n";
-
     //send message
     opticalFlow_pub_->Publish(opticalFlow_message);
     timer_.start();
