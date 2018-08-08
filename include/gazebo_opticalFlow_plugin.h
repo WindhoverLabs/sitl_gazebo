@@ -37,7 +37,13 @@
 #include "flow_opencv.hpp"
 #include "flow_px4.hpp"
 
+#include <boost/bind.hpp>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
 #define DEFAULT_RATE 20
+#define PORT (5601)
+#define HOST ("127.0.0.1")
 
 using namespace cv;
 using namespace std;
@@ -76,6 +82,10 @@ namespace gazebo
       float focal_length_;
       double first_frame_time_;
       uint32_t frame_time_us_;
+
+      int file_desc;
+      struct sockaddr_in myaddr;
+
   };
 }
 #endif
