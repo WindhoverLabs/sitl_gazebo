@@ -456,25 +456,25 @@
         <use_parent_model_frame>1</use_parent_model_frame>
       </axis>
     </joint>
-      <link name='sonar_model::bottom_sonar_link'>
+      <link name='sonar_model::link'>
+        <pose frame=''>0 0 0 0 -0 0</pose>
         <inertial>
           <pose frame=''>0 0 0 0 -0 0</pose>
-          <mass>0.01</mass>
+          <mass>1e-15</mass>
           <inertia>
-            <ixx>2.1733e-06</ixx>
+            <ixx>2.08333e-07</ixx>
             <ixy>0</ixy>
             <ixz>0</ixz>
-            <iyy>2.1733e-06</iyy>
+            <iyy>2.08333e-07</iyy>
             <iyz>0</iyz>
-            <izz>1.8e-07</izz>
+            <izz>4.16667e-08</izz>
           </inertia>
         </inertial>
         <visual name='visual'>
           <geometry>
-            <cylinder>
-              <radius>0.006</radius>
-              <length>0.05</length>
-            </cylinder>
+            <box>
+              <size>0.005 0.015 0.005</size>
+            </box>
           </geometry>
           <material>
             <script>
@@ -483,29 +483,27 @@
             </script>
           </material>
         </visual>
-        <sensor name='bottom_sonar' type='sonar'>
-          <pose frame=''>0 0 0 3.14159 0 3.14159</pose>
+        <sensor name='sonar' type='sonar'>
+          <pose frame=''>0 0 0 3.14159 3.14159 3.14159</pose>
           <sonar>
             <min>0.5</min>
             <max>8.5</max>
-            <radius>.75</radius>
+            <radius>1.33974</radius>
           </sonar>
           <always_on>1</always_on>
-          <visualize>1</visualize>
-          <plugin name='SonarPlugin' filename='libgazebo_sonar_plugin.so'/>
           <update_rate>16</update_rate>
           <visualize>1</visualize>
+          <plugin name='SonarPlugin' filename='libgazebo_sonar_plugin.so'/>
         </sensor>
-        <pose frame=''>0 0 0 3.14159 0.001593 3.14159</pose>
         <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
+        <enable_wind>1</enable_wind>
         <kinematic>0</kinematic>
       </link>
-       <joint name='bottom_sonar_joint' type='fixed'>
-        <child>sonar_model::bottom_sonar_link</child>
+      <joint name='sonar_joint' type='revolute'>
+        <child>sonar_model::link</child>
         <parent>bebop2::base_link</parent>
         <axis>
-          <xyz>0 0 0</xyz>
+          <xyz>0 0 1</xyz>
           <limit>
             <upper>0</upper>
             <lower>0</lower>
