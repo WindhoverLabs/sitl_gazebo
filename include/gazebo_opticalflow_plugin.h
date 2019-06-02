@@ -39,10 +39,6 @@
 #include "flow_opencv.hpp"
 #include "flow_px4.hpp"
 
-#include <boost/bind.hpp>
-#include <sys/socket.h>
-#include <netinet/in.h>
-
 #define DEFAULT_RATE 20
 #define HAS_GYRO TRUE
 

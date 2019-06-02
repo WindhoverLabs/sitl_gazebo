@@ -27,11 +27,6 @@
 #include <string>
 #include <iostream>
 #include <boost/algorithm/string.hpp>
-#include <sys/socket.h>
-
-//debug
-#include <typeinfo>
-#include <iostream>
 
 using namespace cv;
 using namespace std;
@@ -97,7 +92,6 @@ void OpticalFlowPlugin::Load(sensors::SensorPtr _sensor, sdf::ElementPtr _sdf)
 #endif
 
   focal_length_ = (this->width/2)/tan(hfov_/2);
-
 
   if (this->width != 64 || this->height != 64) {
     gzerr << "[gazebo_optical_flow_plugin] Incorrect image size, must by 64 x 64.\n";
@@ -202,7 +196,7 @@ void OpticalFlowPlugin::OnNewFrame(const unsigned char * _image,
     opticalFlow_message.set_temperature(20.0f);
     opticalFlow_message.set_quality(quality);
     opticalFlow_message.set_time_delta_distance_us(0);
-    opticalFlow_message.set_distance(0.0f); //get real values in gazebo_mavlink_interface.cpp  gzerr<<"TIME :   "<< sensor_msg.time_usec <<"  \n";
+    opticalFlow_message.set_distance(0.0f); //get real values in gazebo_mavlink_interface.cpp
     //send message
     opticalFlow_pub_->Publish(opticalFlow_message);
   }
