@@ -28,13 +28,17 @@ GZ_REGISTER_MODEL_PLUGIN(GimbalControllerPlugin)
 GimbalControllerPlugin::GimbalControllerPlugin()
   :status("closed")
 {
-  /// TODO: make these gains part of sdf xml
-  this->pitchPid.Init(5, 0, 0, 0, 0, 0.3, -0.3);
-  this->rollPid.Init(5, 0, 0, 0, 0, 0.3, -0.3);
-  this->yawPid.Init(1.0, 0, 0, 0, 0, 1.0, -1.0);
+  /// defaults if sdf xml doesn't contain any pid gains
+  this->pitchPid.Init(kPIDPitchP, kPIDPitchI, kPIDPitchD, kPIDPitchIMax, kPIDPitchIMin, kPIDPitchCmdMax, kPIDPitchCmdMin);
+  this->rollPid.Init(kPIDRollP, kPIDRollI, kPIDRollD, kPIDRollIMax, kPIDRollIMin, kPIDRollCmdMax, kPIDRollCmdMin);
+  this->yawPid.Init(kPIDYawP, kPIDYawI, kPIDYawD, kPIDYawIMax, kPIDYawIMin, kPIDYawCmdMax, kPIDYawCmdMin);
   this->pitchCommand = 0.5* M_PI;
   this->rollCommand = 0;
   this->yawCommand = 0;
+  this->lastImuYaw = 0;
+  this->rDir = kRollDir;
+  this->pDir = kPitchDir;
+  this->yDir = kYawDir;
 }
 
 /////////////////////////////////////////////////
@@ -45,6 +49,57 @@ void GimbalControllerPlugin::Load(physics::ModelPtr _model,
 
   this->sdf = _sdf;
 
+  // Create axis name -> pid map. It may be empty or not fully defined
+  std::map<std::string, common::PID> pids_;
+
+  if (_sdf->HasElement("control_gimbal_channels"))
+  {
+    sdf::ElementPtr control_channels = _sdf->GetElement("control_gimbal_channels");
+    sdf::ElementPtr channel = control_channels->GetElement("channel");
+    while(channel)
+    {
+      if (channel->HasElement("joint_axis"))
+      {
+        std::string joint_axis = channel->Get<std::string>("joint_axis");
+
+        // setup joint control pid to control joint
+        if (channel->HasElement("joint_control_pid"))
+        {
+          sdf::ElementPtr pid = channel->GetElement("joint_control_pid");
+          double p = 0;
+          if (pid->HasElement("p"))
+            p = pid->Get<double>("p");
+          double i = 0;
+          if (pid->HasElement("i"))
+            i = pid->Get<double>("i");
+          double d = 0;
+          if (pid->HasElement("d"))
+            d = pid->Get<double>("d");
+          double iMax = 0;
+          if (pid->HasElement("iMax"))
+            iMax = pid->Get<double>("iMax");
+          double iMin = 0;
+          if (pid->HasElement("iMin"))
+            iMin = pid->Get<double>("iMin");
+          double cmdMax = 0;
+          if (pid->HasElement("cmdMax"))
+            cmdMax = pid->Get<double>("cmdMax");
+          double cmdMin = 0;
+          if (pid->HasElement("cmdMin"))
+            cmdMin = pid->Get<double>("cmdMin");
+
+          // insert pid gains into map for the respective named joint axis
+          pids_.insert(std::pair<std::string, common::PID>(joint_axis, common::PID(p, i, d, iMax, iMin, cmdMax, cmdMin)));
+        }
+        channel = channel->GetNextElement("channel");
+      }
+    }
+  }
+  else
+  {
+    gzwarn << "Control channels for gimbal not found. Using default pid gains\n";
+  }
+
   std::string yawJointName = "cgo3_vertical_arm_joint";
   this->yawJoint = this->model->GetJoint(yawJointName);
   if (this->sdf->HasElement("joint_yaw"))
@@ -54,6 +109,38 @@ void GimbalControllerPlugin::Load(physics::ModelPtr _model,
     if (this->model->GetJoint(yawJointName))
     {
       this->yawJoint = this->model->GetJoint(yawJointName);
+
+      // Try to find yaw rotation direction
+      sdf::ElementPtr sdfElem = this->yawJoint->GetSDF();
+      if(sdfElem->HasElement("axis"))
+      {
+        // Rotation is found
+#if GAZEBO_MAJOR_VERSION >= 9
+        yDir = this->yawJoint->LocalAxis(0)[2];
+#else
+        yDir = this->yawJoint->GetLocalAxis(0)[2];
+#endif
+      }
+      else
+      {
+        // If user do not defines axis for yaw joint explicitly
+        // then display warning
+        gzwarn << "joint_yaw [" << yawJointName << "] axis do not defined?\n";
+      }
+
+      // Try to find respective pid for the named axis control
+      std::map<std::string, common::PID>::iterator it = pids_.find("joint_yaw");
+      if(it != pids_.end())
+      {
+        // Found pid for this axis (and therefore for this joint)
+        this->yawPid = it->second;
+      }
+      else
+      {
+        // If user defines control channels for gimbal but don't define yaw gains explicitly
+        // then display warning
+        gzwarn << "joint_yaw [" << yawJointName << "] pid control gains do not defined?\n";
+      }
     }
     else
     {
@@ -75,6 +162,38 @@ void GimbalControllerPlugin::Load(physics::ModelPtr _model,
     if (this->model->GetJoint(rollJointName))
     {
       this->rollJoint = this->model->GetJoint(rollJointName);
+
+      // Try to find roll rotation direction
+      sdf::ElementPtr sdfElem = this->rollJoint->GetSDF();
+      if(sdfElem->HasElement("axis"))
+      {
+        // Rotation is found
+#if GAZEBO_MAJOR_VERSION >= 9
+        rDir = this->rollJoint->LocalAxis(0)[0];
+#else
+        rDir = this->rollJoint->GetLocalAxis(0)[0];
+#endif
+      }
+      else
+      {
+        // If user do not defines axis for roll joint explicitly
+        // then display warning
+        gzwarn << "joint_roll [" << rollJointName << "] axis do not defined?\n";
+      }
+
+      // Try to find respective pid for the named axis control
+      std::map<std::string, common::PID>::iterator it = pids_.find("joint_roll");
+      if(it != pids_.end())
+      {
+        // Found pid for this axis (and therefore for this joint)
+        this->rollPid = it->second;
+      }
+      else
+      {
+        // If user defines control channels for gimbal but don't define roll gains explicitly
+        // then display warning
+        gzwarn << "joint_roll [" << rollJointName << "] pid control gains do not defined?\n";
+      }
     }
     else
     {
@@ -87,7 +206,6 @@ void GimbalControllerPlugin::Load(physics::ModelPtr _model,
           << rollJointName << "' " << endl;
   }
 
-
   std::string pitchJointName = "cgo3_camera_joint";
   this->pitchJoint = this->model->GetJoint(pitchJointName);
   if (this->sdf->HasElement("joint_pitch"))
@@ -97,6 +215,38 @@ void GimbalControllerPlugin::Load(physics::ModelPtr _model,
     if (this->model->GetJoint(pitchJointName))
     {
       this->pitchJoint = this->model->GetJoint(pitchJointName);
+
+      // Try to find pitch rotation direction
+      sdf::ElementPtr sdfElem = this->pitchJoint->GetSDF();
+      if(sdfElem->HasElement("axis"))
+      {
+        // Rotation is found
+#if GAZEBO_MAJOR_VERSION >= 9
+        pDir = this->pitchJoint->LocalAxis(0)[1];
+#else
+        pDir = this->pitchJoint->GetLocalAxis(0)[1];
+#endif
+      }
+      else
+      {
+        // If user do not defines axis for pitch joint explicitly
+        // then display warning
+        gzwarn << "joint_pitch [" << pitchJointName << "] axis do not defined?\n";
+      }
+
+      // Try to find respective pid for the named axis
+      std::map<std::string, common::PID>::iterator it = pids_.find("joint_pitch");
+      if(it != pids_.end())
+      {
+        // Found pid for this axis (and therefore for this joint)
+        this->pitchPid = it->second;
+      }
+      else
+      {
+        // If user defines control channels for gimbal but don't define pitch gains explicitly
+        // then display warning
+        gzwarn << "joint_pitch [" << pitchJointName << "] pid control gains do not defined?\n";
+      }
     }
     else
     {
@@ -109,25 +259,24 @@ void GimbalControllerPlugin::Load(physics::ModelPtr _model,
           << pitchJointName << "' " << endl;
   }
 
-
-  // get imu sensor
-  std::string imuSensorName = "camera_imu";
-  if (this->sdf->HasElement("imu"))
+  // get imu sensors
+  std::string cameraImuSensorName = "camera_imu";
+  if (this->sdf->HasElement("gimbal_imu"))
   {
     // Add names to map
-    imuSensorName = sdf->Get<std::string>("imu");
+    cameraImuSensorName = sdf->Get<std::string>("gimbal_imu");
   }
 #if GAZEBO_MAJOR_VERSION >= 7
-  this->imuSensor = std::static_pointer_cast<sensors::ImuSensor>(
-    sensors::SensorManager::Instance()->GetSensor(imuSensorName));
+  this->cameraImuSensor = std::static_pointer_cast<sensors::ImuSensor>(
+    sensors::SensorManager::Instance()->GetSensor(cameraImuSensorName));
 #elif GAZEBO_MAJOR_VERSION >= 6
-  this->imuSensor = boost::static_pointer_cast<sensors::ImuSensor>(
-    sensors::SensorManager::Instance()->GetSensor(imuSensorName));
+  this->cameraImuSensor = boost::static_pointer_cast<sensors::ImuSensor>(
+    sensors::SensorManager::Instance()->GetSensor(cameraImuSensorName));
 #endif
-  if (!this->imuSensor)
+  if (!this->cameraImuSensor)
   {
     gzerr << "GimbalControllerPlugin::Load ERROR! Can't get imu sensor '"
-          << imuSensorName << "' " << endl;
+          << cameraImuSensorName << "' " << endl;
   }
 }
 
@@ -135,9 +284,13 @@ void GimbalControllerPlugin::Load(physics::ModelPtr _model,
 void GimbalControllerPlugin::Init()
 {
   this->node = transport::NodePtr(new transport::Node());
+#if GAZEBO_MAJOR_VERSION >= 9
+  this->node->Init(this->model->GetWorld()->Name());
+  this->lastUpdateTime = this->model->GetWorld()->SimTime();
+#else
   this->node->Init(this->model->GetWorld()->GetName());
-
   this->lastUpdateTime = this->model->GetWorld()->GetSimTime();
+#endif
 
   // receive pitch command via gz transport
   std::string pitchTopic = std::string("~/") +  this->model->GetName() +
@@ -162,34 +315,32 @@ void GimbalControllerPlugin::Init()
   // publish pitch status via gz transport
   pitchTopic = std::string("~/") +  this->model->GetName()
     + "/gimbal_pitch_status";
-#if GAZEBO_MAJOR_VERSION >= 7 && GAZEBO_MINOR_VERSION >= 4
-  /// only gazebo 7.4 and above support Any
-  this->pitchPub = node->Advertise<gazebo::msgs::Any>(pitchTopic);
-#else
+  // Although gazebo above 7.4 support Any, still use GzString instead
   this->pitchPub = node->Advertise<gazebo::msgs::GzString>(pitchTopic);
-#endif
 
   // publish roll status via gz transport
   rollTopic = std::string("~/") +  this->model->GetName()
     + "/gimbal_roll_status";
-#if GAZEBO_MAJOR_VERSION >= 7 && GAZEBO_MINOR_VERSION >= 4
-  /// only gazebo 7.4 and above support Any
-  this->rollPub = node->Advertise<gazebo::msgs::Any>(rollTopic);
-#else
+  // Although gazebo above 7.4 support Any, still use GzString instead
   this->rollPub = node->Advertise<gazebo::msgs::GzString>(rollTopic);
-#endif
 
   // publish yaw status via gz transport
   yawTopic = std::string("~/") +  this->model->GetName()
-    + "/gimbal_yaw_status";
-#if GAZEBO_MAJOR_VERSION >= 7 && GAZEBO_MINOR_VERSION >= 4
-  /// only gazebo 7.4 and above support Any
-  this->yawPub = node->Advertise<gazebo::msgs::Any>(yawTopic);
-#else
+    + "/gimbal_yaw_status";	
+  // Although gazebo above 7.4 support Any, still use GzString instead	
   this->yawPub = node->Advertise<gazebo::msgs::GzString>(yawTopic);
-#endif
+
+  imuSub = node->Subscribe("~/" + model->GetName() + "/imu", &GimbalControllerPlugin::ImuCallback, this);
 
   gzmsg << "GimbalControllerPlugin::Init" << std::endl;
+}
+
+void GimbalControllerPlugin::ImuCallback(ImuPtr& imu_message)
+{
+  this->lastImuYaw = ignition::math::Quaterniond(imu_message->orientation().w(),
+						 imu_message->orientation().x(),
+						 imu_message->orientation().y(),
+						 imu_message->orientation().z()).Euler()[2];
 }
 
 #if GAZEBO_MAJOR_VERSION >= 7 && GAZEBO_MINOR_VERSION >= 4
@@ -269,7 +420,11 @@ void GimbalControllerPlugin::OnUpdate()
   if (!this->pitchJoint || !this->rollJoint || !this->yawJoint)
     return;
 
+#if GAZEBO_MAJOR_VERSION >= 9
+  common::Time time = this->model->GetWorld()->SimTime();
+#else
   common::Time time = this->model->GetWorld()->GetSimTime();
+#endif
   if (time < this->lastUpdateTime)
   {
     gzerr << "time reset event\n";
@@ -278,16 +433,23 @@ void GimbalControllerPlugin::OnUpdate()
   }
   else if (time > this->lastUpdateTime)
   {
-    double dt = (this->lastUpdateTime - time).Double();
+    double dt = (time - this->lastUpdateTime).Double();
 
-    // anything to do with gazebo joint has
-    // hardcoded negative joint axis for pitch and roll
-    // TODO: make joint direction a parameter
-    const double rDir = -1;
-    const double pDir = -1;
-    const double yDir = 1;
+    // We want yaw to control in body frame, not in global.
+    this->yawCommand += this->lastImuYaw;
 
     // truncate command inside joint angle limits
+#if GAZEBO_MAJOR_VERSION >= 9
+    double rollLimited = ignition::math::clamp(this->rollCommand,
+      rDir*this->rollJoint->UpperLimit(0),
+	  rDir*this->rollJoint->LowerLimit(0));
+    double pitchLimited = ignition::math::clamp(this->pitchCommand,
+      pDir*this->pitchJoint->UpperLimit(0),
+      pDir*this->pitchJoint->LowerLimit(0));
+    double yawLimited = ignition::math::clamp(this->yawCommand,
+      yDir*this->yawJoint->LowerLimit(0),
+	  yDir*this->yawJoint->UpperLimit(0));
+#else
     double rollLimited = ignition::math::clamp(this->rollCommand,
       rDir*this->rollJoint->GetUpperLimit(0).Radian(),
 	  rDir*this->rollJoint->GetLowerLimit(0).Radian());
@@ -297,17 +459,13 @@ void GimbalControllerPlugin::OnUpdate()
     double yawLimited = ignition::math::clamp(this->yawCommand,
       yDir*this->yawJoint->GetLowerLimit(0).Radian(),
 	  yDir*this->yawJoint->GetUpperLimit(0).Radian());
-
-    ignition::math::Quaterniond commandRPY(
-      rollLimited, pitchLimited, yawLimited);
-
-
-    /// Get current joint angles (in sensor frame):
+#endif
 
     /// currentAngleYPRVariable is defined in roll-pitch-yaw-fixed-axis
     /// and gimbal is constructed using yaw-roll-pitch-variable-axis
     ignition::math::Vector3d currentAngleYPRVariable(
-      this->imuSensor->Orientation().Euler());
+      this->cameraImuSensor->Orientation().Euler());
+
 #if GAZEBO_MAJOR_VERSION >= 8
     ignition::math::Vector3d currentAnglePRYVariable(
       this->QtoZXY(ignition::math::Quaterniond(currentAngleYPRVariable)));
@@ -318,6 +476,16 @@ void GimbalControllerPlugin::OnUpdate()
 
     /// get joint limits (in sensor frame)
     /// TODO: move to Load() if limits do not change
+#if GAZEBO_MAJOR_VERSION >= 9
+    ignition::math::Vector3d lowerLimitsPRY
+      (pDir*this->pitchJoint->LowerLimit(0),
+       rDir*this->rollJoint->LowerLimit(0),
+       yDir*this->yawJoint->LowerLimit(0));
+    ignition::math::Vector3d upperLimitsPRY
+      (pDir*this->pitchJoint->UpperLimit(0),
+       rDir*this->rollJoint->UpperLimit(0),
+       yDir*this->yawJoint->UpperLimit(0));
+#else
     ignition::math::Vector3d lowerLimitsPRY
       (pDir*this->pitchJoint->GetLowerLimit(0).Radian(),
        rDir*this->rollJoint->GetLowerLimit(0).Radian(),
@@ -326,6 +494,7 @@ void GimbalControllerPlugin::OnUpdate()
       (pDir*this->pitchJoint->GetUpperLimit(0).Radian(),
        rDir*this->rollJoint->GetUpperLimit(0).Radian(),
        yDir*this->yawJoint->GetUpperLimit(0).Radian());
+#endif
 
     // normalize errors
     double pitchError = this->ShortestAngularDistance(
@@ -408,22 +577,23 @@ void GimbalControllerPlugin::OnUpdate()
   if (++i>100)
   {
     i = 0;
-#if GAZEBO_MAJOR_VERSION >= 7 && GAZEBO_MINOR_VERSION >= 4
-    gazebo::msgs::Any m;
-    m.set_type(gazebo::msgs::Any_ValueType_DOUBLE);
-
-    m.set_double_value(this->pitchJoint->GetAngle(0).Radian());
-    this->pitchPub->Publish(m);
-
-    m.set_double_value(this->rollJoint->GetAngle(0).Radian());
-    this->rollPub->Publish(m);
-
-    m.set_double_value(this->yawJoint->GetAngle(0).Radian());
-    this->yawPub->Publish(m);
-#else
+ // There is bug when use gazebo::msgs::Any m, so still use GzString instead
+ // Although gazebo above 7.4 support Any, still use GzString instead
     std::stringstream ss;
     gazebo::msgs::GzString m;
+#if GAZEBO_MAJOR_VERSION >= 9
+    ss << this->pitchJoint->Position(0);
+    m.set_data(ss.str());
+    this->pitchPub->Publish(m);
 
+    ss << this->rollJoint->Position(0);
+    m.set_data(ss.str());
+    this->rollPub->Publish(m);
+
+    ss << this->yawJoint->Position(0);
+    m.set_data(ss.str());
+    this->yawPub->Publish(m);
+#else
     ss << this->pitchJoint->GetAngle(0).Radian();
     m.set_data(ss.str());
     this->pitchPub->Publish(m);
@@ -434,8 +604,8 @@ void GimbalControllerPlugin::OnUpdate()
 
     ss << this->yawJoint->GetAngle(0).Radian();
     m.set_data(ss.str());
-    this->yawPub->Publish(m);
-#endif
+    this->yawPub->Publish(m);	  
+#endif	  
   }
 }
 

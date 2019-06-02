@@ -7,9 +7,9 @@
   -->
   <model name='hippocampus'>
     <link name='base_link'>
-      <pose frame=''>0 0 0 0 -0 0</pose>
+      <pose>0 0 0 0 0 0</pose>
       <inertial>
-        <pose frame=''>0 0 0 0 -0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <!--
           These values are a compromise between the dry mass and added mass
           values used to correct for hydrodynamic effects.
@@ -37,7 +37,7 @@
           visual properties of the link, (here the base of the hippocampus)
       -->
       <visual name='visual'>
-        <pose frame=''>0 0 0 0 0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
           <mesh>
             <uri>model://hippocampus/meshes/hippocampus.stl</uri>
@@ -63,7 +63,7 @@
 
     <!-- RGB cylinders representing the resulting frame -->
     <visual name="frameX">
-      <pose frame=''>0.1 0 0 0 1.57 0</pose>
+      <pose>0.1 0 0 0 1.57 0</pose>
           <geometry>
             <cylinder>
               <length>0.35</length>
@@ -118,7 +118,7 @@
       <collision name='base_link_collision'>
         <laser_retro>0</laser_retro>
         <max_contacts>10</max_contacts>
-        <pose frame=''>0 0 0 0 1.570796 0</pose>
+        <pose>0 0 0 0 1.570796 0</pose>
         <geometry>
           <cylinder>
             <radius>0.03</radius>
@@ -175,9 +175,9 @@
         East-Down) coordinate frame whereas Gazebo uses a ENU (East-North-Up) coordinate frame.
     -->
     <link name='hippocampus/imu_link'>
-      <pose frame=''>0 0 0 3.1415 0 0</pose>
+      <pose>0 0 0 3.1415 0 0</pose>
       <inertial>
-        <pose frame=''>0 0 0 0 0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <mass>0.015</mass>
         <inertia>
           <ixx>1e-05</ixx>
@@ -199,13 +199,13 @@
     -->
     <!-- CCW 1-->
     <link name='rotor_0'>
-      <pose frame=''>-0.05 -0.0481 -0.0481 0 0 0</pose>
+      <pose>-0.05 -0.0481 -0.0481 0 0 0</pose>
       <self_collide>0</self_collide>
       <kinematic>0</kinematic>
       <velocity_decay/>
       <gravity>0</gravity>
       <visual name='rotor_0_visual'>
-        <pose frame=''>0 0 0 0 -0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
           <mesh>
             <scale>1 1 1</scale>
@@ -231,7 +231,7 @@
       <collision name='rotor_0_collision'>
         <laser_retro>0</laser_retro>
         <max_contacts>10</max_contacts>
-        <pose frame=''>0 0 0.02 0 -0 0</pose>
+        <pose>0 0 0.02 0 0 0</pose>
         <geometry>
           <cylinder>
             <radius>0.02</radius>
@@ -278,13 +278,13 @@
     </link>
     <!-- CW 2 -->
     <link name='rotor_1'>
-      <pose frame=''>-0.05 +0.0481 -0.0481 0 0 0</pose>
+      <pose>-0.05 +0.0481 -0.0481 0 0 0</pose>
       <self_collide>0</self_collide>
       <kinematic>0</kinematic>
       <velocity_decay/>
       <gravity>0</gravity>
       <visual name='rotor_1_visual'>
-        <pose frame=''>0 0 0 0 -0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
           <mesh>
             <scale>1 1 1</scale>
@@ -310,7 +310,7 @@
       <collision name='rotor_1_collision'>
         <laser_retro>0</laser_retro>
         <max_contacts>10</max_contacts>
-        <pose frame=''>0 0 0.02 0 -0 0</pose>
+        <pose>0 0 0.02 0 0 0</pose>
         <geometry>
           <cylinder>
             <radius>0.02</radius>
@@ -357,13 +357,13 @@
     </link>
     <!-- CCW 3 -->
     <link name='rotor_2'>
-      <pose frame=''>-0.05 0.0481 0.0481 0 0 0</pose>
+      <pose>-0.05 0.0481 0.0481 0 0 0</pose>
       <self_collide>0</self_collide>
       <kinematic>0</kinematic>
       <velocity_decay/>
       <gravity>0</gravity>
       <visual name='rotor_2_visual'>
-        <pose frame=''>0 0 0 0 -0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
           <mesh>
             <scale>1 1 1</scale>
@@ -389,7 +389,7 @@
       <collision name='rotor_2_collision'>
         <laser_retro>0</laser_retro>
         <max_contacts>10</max_contacts>
-        <pose frame=''>0 0 0.02 0 -0 0</pose>
+        <pose>0 0 0.02 0 0 0</pose>
         <geometry>
           <cylinder>
             <radius>0.02</radius>
@@ -436,13 +436,13 @@
     </link>
     <!-- CW 4 -->
     <link name='rotor_3'>
-      <pose frame=''>-0.05 -0.0481 +0.0481 0 0 0</pose>
+      <pose>-0.05 -0.0481 +0.0481 0 0 0</pose>
       <self_collide>0</self_collide>
       <kinematic>0</kinematic>
       <velocity_decay/>
       <gravity>0</gravity>
       <visual name='rotor_3_visual'>
-        <pose frame=''>0 0 0 0 -0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
           <mesh>
             <scale>1 1 1</scale>
@@ -468,7 +468,7 @@
       <collision name='rotor_3_collision'>
         <laser_retro>0</laser_retro>
         <max_contacts>10</max_contacts>
-        <pose frame=''>0 0 0.02 0 -0 0</pose>
+        <pose>0 0 0.02 0 0 0</pose>
         <geometry>
           <cylinder>
             <radius>0.02</radius>
@@ -686,13 +686,40 @@
     -->
     <static>0</static>
     <allow_auto_disable>1</allow_auto_disable>
+    <plugin name="gps_plugin" filename="libgazebo_gps_plugin.so">
+        <robotNamespace></robotNamespace>
+        <gpsNoise>true</gpsNoise>
+    </plugin>
+
+    <plugin name='magnetometer_plugin' filename='libgazebo_magnetometer_plugin.so'>
+      <robotNamespace/>
+      <pubRate>20</pubRate>
+      <noiseDensity>0.0004</noiseDensity>
+      <randomWalk>6.4e-06</randomWalk>
+      <biasCorrelationTime>600</biasCorrelationTime>
+      <magTopic>/mag</magTopic>
+    </plugin>
 
     <!--
         The gazebo_mavlink_plugin.cpp is called. Parameters are transferred.
     -->
-    <plugin name='mavlink_interface' filename='librotors_gazebo_mavlink_interface.so'>
+    <plugin name='mavlink_interface' filename='libgazebo_mavlink_interface.so'>
       <robotNamespace>hippocampus</robotNamespace>
       <imuSubTopic>/imu</imuSubTopic>
+      <gpsSubTopic>/gps</gpsSubTopic>
+      <magSubTopic>/mag</magSubTopic>
+      <baroSubTopic>/baro</baroSubTopic>
+      <mavlink_addr>INADDR_ANY</mavlink_addr>
+      <mavlink_udp_port>14560</mavlink_udp_port>
+      <serialEnabled>false</serialEnabled>
+      <serialDevice>/dev/ttyACM0</serialDevice>
+      <baudRate>921600</baudRate>
+      <qgc_addr>INADDR_ANY</qgc_addr>
+      <qgc_udp_port>14550</qgc_udp_port>
+      <hil_mode>false</hil_mode>
+      <hil_state_level>false</hil_state_level>
+      <enable_lockstep>true</enable_lockstep>
+      <use_tcp>true</use_tcp>
       <motorSpeedCommandPubTopic>/gazebo/command/motor_speed</motorSpeedCommandPubTopic>
 
       <!-- control channels, this way for every channel different settings can be realized -->
@@ -764,7 +791,7 @@
     <!--
         The gazebo_imu_plugin.cpp is called.
     -->
-    <plugin name='rotors_gazebo_imu_plugin' filename='librotors_gazebo_imu_plugin.so'>
+    <plugin name='gazebo_imu_plugin' filename='libgazebo_imu_plugin.so'>
       <robotNamespace>hippocampus</robotNamespace>
       <linkName>hippocampus/imu_link</linkName>
       <imuTopic>/imu</imuTopic>
@@ -778,12 +805,18 @@
       <accelerometerTurnOnBiasSigma>0.196</accelerometerTurnOnBiasSigma>
     </plugin>
 
+    <plugin name='barometer_plugin' filename='libgazebo_barometer_plugin.so'>
+      <robotNamespace/>
+      <pubRate>10</pubRate>
+      <baroTopic>/baro</baroTopic>
+    </plugin>
+
     <!--
         The gazebo_motor_model.cpp is called.
         Forces and Moments are set to zero since they are already calculated using the gazebo_uuv_plugin.
         The motor model plugins can be removed if you don't need the rotors to spin.
     -->
-    <plugin name='front_right_motor_model' filename='librotors_gazebo_motor_model.so'>
+    <plugin name='front_right_motor_model' filename='libgazebo_motor_model.so'>
       <robotNamespace>hippocampus</robotNamespace>
       <jointName>rotor_0_joint</jointName>
       <linkName>rotor_0</linkName>
@@ -800,7 +833,7 @@
       <motorSpeedPubTopic>motor_speed/0</motorSpeedPubTopic>
       <rotorVelocitySlowdownSim>0.05</rotorVelocitySlowdownSim>
     </plugin>
-    <plugin name='back_left_motor_model' filename='librotors_gazebo_motor_model.so'>
+    <plugin name='back_left_motor_model' filename='libgazebo_motor_model.so'>
       <robotNamespace>hippocampus</robotNamespace>
       <jointName>rotor_1_joint</jointName>
       <linkName>rotor_1</linkName>
@@ -817,7 +850,7 @@
       <motorSpeedPubTopic>motor_speed/1</motorSpeedPubTopic>
       <rotorVelocitySlowdownSim>0.05</rotorVelocitySlowdownSim>
     </plugin>
-    <plugin name='front_left_motor_model' filename='librotors_gazebo_motor_model.so'>
+    <plugin name='front_left_motor_model' filename='libgazebo_motor_model.so'>
       <robotNamespace>hippocampus</robotNamespace>
       <jointName>rotor_2_joint</jointName>
       <linkName>rotor_2</linkName>
@@ -834,7 +867,7 @@
       <motorSpeedPubTopic>motor_speed/2</motorSpeedPubTopic>
       <rotorVelocitySlowdownSim>0.05</rotorVelocitySlowdownSim>
     </plugin>
-    <plugin name='back_right_motor_model' filename='librotors_gazebo_motor_model.so'>
+    <plugin name='back_right_motor_model' filename='libgazebo_motor_model.so'>
       <robotNamespace>hippocampus</robotNamespace>
       <jointName>rotor_3_joint</jointName>
       <linkName>rotor_3</linkName>

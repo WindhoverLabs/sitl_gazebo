@@ -9,11 +9,12 @@
     <include>
       <uri>model://ground_plane</uri>
     </include>
+    <!-- An asphalt plane -->
     <include>
-      <uri>model://iris_rplidar</uri>
+      <uri>model://asphalt_plane</uri>
     </include>
     <include>
-      <uri>model://uneven_ground</uri>
+      <uri>model://iris_rplidar</uri>
     </include>
     <physics name='default_physics' default='0' type='ode'>
       <gravity>0 0 -9.8066</gravity>
@@ -31,15 +32,15 @@
           <contact_surface_layer>0.001</contact_surface_layer>
         </constraints>
       </ode>
-      <max_step_size>0.002</max_step_size>
+      <max_step_size>0.004</max_step_size>
       <real_time_factor>1</real_time_factor>
-      <real_time_update_rate>500</real_time_update_rate>
-      <magnetic_field>6e-06 2.3e-05 -4.2e-05</magnetic_field>
+      <real_time_update_rate>250</real_time_update_rate>
+      <magnetic_field>6.0e-6 2.3e-5 -4.2e-5</magnetic_field>
     </physics>
     <!--
     <gui fullscreen='0'>
       <camera name='user_camera'>
-        <pose frame=''>5.4634 -5.46339 2.17586 0 0.275643 2.35619</pose>
+        <pose>5.4634 -5.46339 2.17586 0 0.275643 2.35619</pose>
         <view_controller>orbit</view_controller>
         <projection_type>perspective</projection_type>
         <track_visual>

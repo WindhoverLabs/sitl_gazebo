@@ -58,21 +58,12 @@ SonarPlugin::~SonarPlugin()
 void SonarPlugin::Load(sensors::SensorPtr _parent, sdf::ElementPtr _sdf)
 {
 //  Get then name of the parent sensor
-  this->parentSensor =
-#if GAZEBO_MAJOR_VERSION >= 7
-    std::dynamic_pointer_cast<sensors::SonarSensor>(_parent);
-#else
-    boost::dynamic_pointer_cast<sensors::SonarSensor>(_parent);
-#endif  
+  this->parentSensor = std::dynamic_pointer_cast<sensors::SonarSensor>(_parent);
 
   if (!this->parentSensor)
     gzthrow("SonarPlugin requires a Sonar Sensor as its parent");
 
-#if GAZEBO_MAJOR_VERSION >= 7
   this->world = physics::get_world(this->parentSensor->WorldName());
-#else
-  this->world = physics::get_world(this->parentSensor->GetWorldName());
-#endif
 
   this->parentSensor->SetActive(false);
   this->newScansConnection = this->parentSensor->ConnectUpdated(boost::bind(&SonarPlugin::OnNewScans, this));
@@ -86,34 +77,26 @@ void SonarPlugin::Load(sensors::SensorPtr _parent, sdf::ElementPtr _sdf)
   node_handle_ = transport::NodePtr(new transport::Node());
   node_handle_->Init(namespace_);
 
-#if GAZEBO_MAJOR_VERSION >= 7
   const string scopedName = _parent->ParentName();
-#else
-  const string scopedName = _parent->GetParentName();
-#endif
   string topicName = "~/" + scopedName + "/sonar";
   boost::replace_all(topicName, "::", "/");
 
-
-  sonar_pub_ = node_handle_->Advertise<sonarSens_msgs::msgs::sonarSens>(topicName, 10);
+  sonar_pub_ = node_handle_->Advertise<sensor_msgs::msgs::Range>(topicName, 10);
 }
 
 void SonarPlugin::OnNewScans()
 {
-  
-  sonar_message.set_time_msec(0);
-#if GAZEBO_MAJOR_VERSION >= 7
+  // Get the current simulation time.
+#if GAZEBO_MAJOR_VERSION >= 9
+  common::Time now = world->SimTime();
+#else
+  common::Time now = world->GetSimTime();
+#endif
+
+  sonar_message.set_time_usec(now.Double() * 1e6);
   sonar_message.set_min_distance(parentSensor->RangeMin());
   sonar_message.set_max_distance(parentSensor->RangeMax());
   sonar_message.set_current_distance(parentSensor->Range());
-#else
-  sonar_message.set_min_distance(parentSensor->GetRangeMin());
-  sonar_message.set_max_distance(parentSensor->GetRangeMax());
-  sonar_message.set_current_distance(parentSensor->GetRange());
-#endif
 
   sonar_pub_->Publish(sonar_message);
 }
-
-
-

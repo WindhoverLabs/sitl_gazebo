@@ -1,4 +1,4 @@
-# Gazebo for MAVLink SITL
+# Gazebo for MAVLink SITL and HITL [![Build Status](https://travis-ci.org/PX4/sitl_gazebo.svg?branch=master)](https://travis-ci.org/PX4/sitl_gazebo)
 
 This is a flight simulator for multirotors, VTOL and fixed wing. It uses the motor model and other pieces from the RotorS simulator, but in contrast to RotorS has no dependency on ROS. This repository is in the process of being re-integrated into RotorS, which then will support ROS and MAVLink as transport options: https://github.com/ethz-asl/rotors_simulator
 
@@ -16,13 +16,15 @@ Install the protobuf library, which is used as interface to Gazebo.
 ### Ubuntu Linux
 
 ```bash
-sudo apt-get install libprotobuf-dev libprotoc-dev protobuf-compiler libeigen3-dev gazebo7 libgazebo7-dev
+sudo apt-get install libprotobuf-dev libprotoc-dev protobuf-compiler libeigen3-dev \
+			gazebo7 libgazebo7-dev libxml2-utils python-rospkg python-jinja2
 ```
 
 ### Mac OS
 
 ```bash
-brew install graphviz sdformat3 eigen opencv
+pip install rospkg jinja2
+brew install graphviz libxml2 sdformat3 eigen opencv
 brew install gazebo7
 ```
 
@@ -40,7 +42,7 @@ Clone the gazebo plugins repository to your computer. IMPORTANT: If you do not c
 ```bash
 mkdir -p ~/src
 cd src
-git clone https://github.com/Dronecode/sitl_gazebo.git
+git clone --recursive https://github.com/PX4/sitl_gazebo.git
 ```
 
 Create a build folder in the top level of your repository:
