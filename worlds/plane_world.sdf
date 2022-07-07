@@ -239,52 +239,51 @@
           <use_parent_model_frame>1</use_parent_model_frame>
         </axis>
       </joint>
-      <link name='airspeed::link'>
-        <pose frame=''>0 0 0 0 -0 0</pose>
-        <inertial>
-          <pose frame=''>0 0 0 0 -0 0</pose>
-          <mass>0.015</mass>
-          <inertia>
-            <ixx>1e-05</ixx>
-            <ixy>0</ixy>
-            <ixz>0</ixz>
-            <iyy>1e-05</iyy>
-            <iyz>0</iyz>
-            <izz>1e-05</izz>
-          </inertia>
-        </inertial>
-        <visual name='visual'>
-          <geometry>
-            <cylinder>
-              <radius>0.01</radius>
-              <length>0.1</length>
-            </cylinder>
-          </geometry>
-          <material>
-            <script>
-              <name>Gazebo/Black</name>
-              <uri>__default__</uri>
-            </script>
-          </material>
-        </visual>
-        <sensor name='airspeed' type='gps'>
-          <pose frame=''>0 0 0 0 -0 0</pose>
-          <update_rate>5</update_rate>
-          <always_on>1</always_on>
-          <visualize>0</visualize>
-          <plugin name='airspeed_plugin' filename='libgazebo_airspeed_plugin.so'>
-            <robotNamespace/>
-          </plugin>
-          <gps/>
-        </sensor>
-        <self_collide>0</self_collide>
-        <enable_wind>0</enable_wind>
-        <kinematic>0</kinematic>
-      </link>
-      <joint name='airspeed_joint' type='fixed'>
-        <child>airspeed::link</child>
-        <parent>base_link</parent>
-      </joint>
+
+
+
+      
+      
+      
+	  <link name="airspeed::link">
+	    <pose>0 0 0 0 0 0</pose>
+  	    <inertial>
+	      <pose>0 0 0 0 0 0</pose>
+	      <mass>0.015</mass>
+	      <inertia>
+	        <ixx>1e-05</ixx>
+	        <ixy>0</ixy>
+	        <ixz>0</ixz>
+	        <iyy>1e-05</iyy>
+	        <iyz>0</iyz>
+	        <izz>1e-05</izz>
+	      </inertia>
+	    </inertial>
+	    <visual name="visual">
+	      <geometry>
+	        <cylinder>
+	          <radius>0.01</radius>
+	          <length>0.1</length>
+	        </cylinder>
+	      </geometry>
+	      <material>
+	        <script>
+	          <name>Gazebo/Black</name>
+	        </script>
+	      </material>
+	    </visual>
+	    <sensor name="airspeed" type="gps">
+	      <pose>0 0 0 0 0 0</pose>
+	      <update_rate>5.0</update_rate>
+	      <always_on>true</always_on>
+	      <visualize>false</visualize>
+	      <plugin name='airspeed_plugin' filename='libgazebo_airspeed_plugin.so'>
+	        <robotNamespace/>
+            <topic>/airspeed</topic>
+	      </plugin>
+	    </sensor>
+	  </link>
+
       <link name='rotor_puller'>
         <pose frame=''>0.3 0 0 0 1.57 0</pose>
         <inertial>
@@ -933,6 +932,7 @@
         <imuSubTopic>/imu</imuSubTopic>
         <magSubTopic>/mag</magSubTopic>
         <baroSubTopic>/baro</baroSubTopic>
+        <airspeedSubTopic>/link/airspeed</airspeedSubTopic>
         <mavlink_addr>INADDR_ANY</mavlink_addr>
         <mavlink_tcp_port>4560</mavlink_tcp_port>
         <mavlink_udp_port>14560</mavlink_udp_port>
