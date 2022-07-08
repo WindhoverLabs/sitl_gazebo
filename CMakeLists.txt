@@ -37,7 +37,8 @@ include(GNUInstallDirs)
 #######################
 
 option(BUILD_GSTREAMER_PLUGIN "enable gstreamer plugin" ON)
-option(BUILD_ROS_INTERFACE "Enable building ROS dependent plugins" OFF)
+option(BUILD_ROS2_PLUGINS "Enable building ROS2 dependent plugins" OFF)
+option(GENERATE_ROS_MODELS "Generate model sdf for ROS environment" OFF)
 
 option(SEND_VISION_ESTIMATION_DATA "Send Mavlink VISION_POSITION_ESTIMATE msgs" OFF)
 option(SEND_ODOMETRY_DATA "Send Mavlink ODOMETRY msgs" OFF)
@@ -102,12 +103,14 @@ link_directories(${GAZEBO_LIBRARY_DIRS})
 add_subdirectory( external/OpticalFlow OpticalFlow )
 set( OpticalFlow_LIBS "OpticalFlow" )
 
-# for ROS subscribers and publishers
-if (BUILD_ROS_INTERFACE)
+# for ROS2 subscribers and publishers
+if (BUILD_ROS2_PLUGINS)
+  find_package(ament_cmake REQUIRED)
   find_package(geometry_msgs REQUIRED)
-  find_package(roscpp REQUIRED)
+  find_package(rclcpp REQUIRED)
   find_package(sensor_msgs REQUIRED)
 endif()
+
 
 # find MAVLink
 find_package(MAVLink)
@@ -198,6 +201,7 @@ include_directories(
 if (GSTREAMER_FOUND)
   include_directories(
     ${GSTREAMER_INCLUDE_DIRS}
+    ${GSTREAMER_APP_INCLUDE_DIRS}
   )
 endif()
 
@@ -212,6 +216,7 @@ link_libraries(
 if (GSTREAMER_FOUND)
   link_libraries(
     ${GSTREAMER_LIBRARIES}
+    ${GSTREAMER_APP_LIBRARIES}
     ${GLIB_LDFLAGS}
     gobject-2.0
   )
@@ -270,12 +275,21 @@ function(glob_generate target file_glob)
 		set(out_file ${CMAKE_CURRENT_SOURCE_DIR}/${file_name})
 		string(REGEX REPLACE ".sdf" ".sdf" out_file ${out_file})
 		if (${file_ext} STREQUAL "jinja")
-			add_custom_command(OUTPUT ${out_file}
-				COMMAND
-					${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/jinja_gen.py ${in_file} ${CMAKE_CURRENT_SOURCE_DIR}
-				DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/scripts/jinja_gen.py ${in_file}
-				VERBATIM
-				)
+			if(GENERATE_ROS_MODELS)
+				add_custom_command(OUTPUT ${out_file}
+        	                	COMMAND
+                	                        ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/jinja_gen.py ${in_file} ${CMAKE_CURRENT_SOURCE_DIR} --generate_ros_models true
+                        	        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/scripts/jinja_gen.py ${in_file}
+                                	VERBATIM
+	                                )
+			else()
+				add_custom_command(OUTPUT ${out_file}
+	                                COMMAND
+        	                                ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/jinja_gen.py ${in_file} ${CMAKE_CURRENT_SOURCE_DIR}
+                	                DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/scripts/jinja_gen.py ${in_file}
+                        	        VERBATIM
+                                	)
+			endif()
 			list(APPEND gen_files_${target} ${out_file})
 			string(REGEX REPLACE "${CMAKE_CURRENT_SOURCE_DIR}/" "" gitignore_str ${in_file})
 			string(REGEX REPLACE ".jinja" "" gitignore_str ${gitignore_str})
@@ -299,7 +313,10 @@ set(mav_msgs
   msgs/MotorSpeed.proto
   )
 set(nav_msgs msgs/Odometry.proto)
-set(physics_msgs msgs/Wind.proto)
+set(physics_msgs
+    msgs/Force.proto
+    msgs/Wind.proto
+    )
 set(std_msgs msgs/Int32.proto)
 set(sensor_msgs
   msgs/Airspeed.proto
@@ -357,6 +374,7 @@ add_library(gazebo_catapult_plugin SHARED src/gazebo_catapult_plugin.cpp)
 add_library(gazebo_usv_dynamics_plugin SHARED src/gazebo_usv_dynamics_plugin.cpp)
 add_library(gazebo_parachute_plugin SHARED src/gazebo_parachute_plugin.cpp)
 add_library(gazebo_airship_dynamics_plugin SHARED src/gazebo_airship_dynamics_plugin.cpp)
+add_library(gazebo_drop_plugin SHARED src/gazebo_drop_plugin.cpp)
 
 set(plugins
   gazebo_airspeed_plugin
@@ -383,6 +401,7 @@ set(plugins
   gazebo_usv_dynamics_plugin
   gazebo_parachute_plugin
   gazebo_airship_dynamics_plugin
+  gazebo_drop_plugin
   )
 
 foreach(plugin ${plugins})
@@ -390,11 +409,11 @@ foreach(plugin ${plugins})
 endforeach()
 target_link_libraries(gazebo_opticalflow_plugin ${OpticalFlow_LIBS})
 
-# If BUILD_ROS_INTERFACE set to ON, build plugins that have ROS dependencies
+# If BUILD_ROS2_PLUGINS set to ON, build plugins that have ROS dependencies
 # Current plugins that can be used with ROS interface: gazebo_motor_failure_plugin
-if (BUILD_ROS_INTERFACE)
+if (BUILD_ROS2_PLUGINS)
   add_library(gazebo_motor_failure_plugin SHARED src/gazebo_motor_failure_plugin.cpp)
-  target_link_libraries(gazebo_motor_failure_plugin ${GAZEBO_libraries} ${roscpp_LIBRARIES})
+  target_link_libraries(gazebo_motor_failure_plugin ${GAZEBO_libraries} ${rclcpp_LIBRARIES})
   list(APPEND plugins gazebo_motor_failure_plugin)
   message(STATUS "adding gazebo_motor_failure_plugin to build")
 
@@ -402,11 +421,12 @@ if (BUILD_ROS_INTERFACE)
     include
     ${geometry_msgs_INCLUDE_DIRS}
     ${sensor_msgs_INCLUDE_DIRS}
+    ${rclcpp_INCLUDE_DIRS}
   )
 
   target_link_libraries(gazebo_motor_failure_plugin
-    ${catkin_LIBRARIES}
-    ${roscpp_LIBRARIES}
+    ${ament_LIBRARIES}
+    ${rclcpp_LIBRARIES}
     ${GAZEBO_libraries}
   )
 endif()
@@ -451,6 +471,9 @@ set(plugins
 #if("${GAZEBO_VERSION}" VERSION_LESS "7.0")
   add_library(LiftDragPlugin SHARED src/liftdrag_plugin/liftdrag_plugin.cpp)
   list(APPEND plugins LiftDragPlugin)
+
+  add_library(ForceVisual SHARED src/force_visual/force_visual.cpp)
+  list(APPEND plugins ForceVisual)
 #endif()
 
 foreach(plugin ${plugins})

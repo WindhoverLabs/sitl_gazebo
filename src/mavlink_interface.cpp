@@ -161,11 +161,20 @@ void MavlinkInterface::Load()
       fds_[LISTEN_FD].events = POLLIN; // only listens for new connections on tcp
 
     } else {
-      remote_simulator_addr_.sin_addr.s_addr = mavlink_addr_;
-      remote_simulator_addr_.sin_port = htons(mavlink_udp_port_);
-
-      local_simulator_addr_.sin_addr.s_addr = htonl(INADDR_ANY);
-      local_simulator_addr_.sin_port = htons(0);
+      if (!hil_mode_) {
+        // When connecting to SITL, we specify the port where the mavlink traffic originates from.
+        remote_simulator_addr_.sin_addr.s_addr = mavlink_addr_;
+        remote_simulator_addr_.sin_port = htons(mavlink_udp_port_);
+        local_simulator_addr_.sin_addr.s_addr = htonl(INADDR_ANY);
+        local_simulator_addr_.sin_port = htons(0);
+      } else {
+        // When connecting to HITL via UDP, the vehicle talks to a specific port that we need to
+        // listen to.
+        remote_simulator_addr_.sin_addr.s_addr = htonl(INADDR_ANY);
+        remote_simulator_addr_.sin_port = htons(0);
+        local_simulator_addr_.sin_addr.s_addr = mavlink_addr_;
+        local_simulator_addr_.sin_port = htons(mavlink_udp_port_);
+      }
 
       if ((simulator_socket_fd_ = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         std::cerr << "Creating UDP socket failed: " << strerror(errno) << ", aborting\n";
@@ -186,9 +195,176 @@ void MavlinkInterface::Load()
 
       memset(fds_, 0, sizeof(fds_));
       fds_[CONNECTION_FD].fd = simulator_socket_fd_;
-      fds_[CONNECTION_FD].events = POLLIN | POLLOUT; // read/write
+      fds_[CONNECTION_FD].events = POLLIN;
     }
   }
+  // hil_data_.resize(1);
+}
+
+void MavlinkInterface::SendSensorMessages(uint64_t time_usec) {
+  for (auto& data : hil_data_) {
+    if (data.baro_updated | data.diff_press_updated | data.mag_updated | data.imu_updated) {
+      SendSensorMessages(time_usec, data);
+    }
+  }
+}
+
+void MavlinkInterface::SendHeartbeat() {
+  // In order to start the mavlink instance on Pixhawk over USB, we need to send heartbeats.
+  if (hil_mode_) {
+    mavlink_message_t msg;
+    mavlink_msg_heartbeat_pack_chan(
+      1, 200,
+      MAVLINK_COMM_0,
+      &msg,
+      MAV_TYPE_GENERIC,
+      MAV_AUTOPILOT_INVALID,
+      0, 0, 0);
+    send_mavlink_message(&msg);
+  }
+}
+
+void MavlinkInterface::SendSensorMessages(uint64_t time_usec, HILData &hil_data) {
+  const std::lock_guard<std::mutex> lock(sensor_msg_mutex_);
+
+  HILData* data = &hil_data;
+  mavlink_hil_sensor_t sensor_msg;
+  sensor_msg.id = data->id;
+  sensor_msg.time_usec = time_usec;
+  if (data->imu_updated) {
+    sensor_msg.xacc = data->accel_b[0];
+    sensor_msg.yacc = data->accel_b[1];
+    sensor_msg.zacc = data->accel_b[2];
+    sensor_msg.xgyro = data->gyro_b[0];
+    sensor_msg.ygyro = data->gyro_b[1];
+    sensor_msg.zgyro = data->gyro_b[2];
+    // std::cout <<data->gyro_b[2] << std::endl;
+
+    sensor_msg.fields_updated = (uint16_t)SensorSource::ACCEL | (uint16_t)SensorSource::GYRO;
+
+    data->imu_updated = false;
+  }
+
+  // send only mag data
+  if (data->mag_updated) {
+    sensor_msg.xmag = data->mag_b[0];
+    sensor_msg.ymag = data->mag_b[1];
+    sensor_msg.zmag = data->mag_b[2];
+    sensor_msg.fields_updated = sensor_msg.fields_updated | (uint16_t)SensorSource::MAG;
+
+    data->mag_updated = false;
+  }
+
+  // send only baro data
+  if (data->baro_updated) {
+    sensor_msg.temperature = data->temperature;
+    sensor_msg.abs_pressure = data->abs_pressure;
+    sensor_msg.pressure_alt = data->pressure_alt;
+    sensor_msg.fields_updated = sensor_msg.fields_updated | (uint16_t)SensorSource::BARO;
+
+    data->baro_updated = false;
+  }
+
+  // send only diff pressure data
+  if (data->diff_press_updated) {
+    sensor_msg.diff_pressure = data->diff_pressure;
+    sensor_msg.fields_updated = sensor_msg.fields_updated | (uint16_t)SensorSource::DIFF_PRESS;
+
+    data->diff_press_updated = false;
+  }
+
+  if (!hil_mode_ || (hil_mode_ && !hil_state_level_)) {
+    mavlink_message_t msg;
+    mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &sensor_msg);
+    send_mavlink_message(&msg);
+  }
+}
+
+void MavlinkInterface::SendGpsMessages(const SensorData::Gps &data) {
+  // fill HIL GPS Mavlink msg
+  mavlink_hil_gps_t hil_gps_msg;
+  hil_gps_msg.time_usec = data.time_utc_usec;
+  hil_gps_msg.fix_type = data.fix_type;
+  hil_gps_msg.lat = data.latitude_deg;
+  hil_gps_msg.lon = data.longitude_deg;
+  hil_gps_msg.alt = data.altitude;
+  hil_gps_msg.eph = data.eph;
+  hil_gps_msg.epv = data.epv;
+  hil_gps_msg.vel = data.velocity;
+  hil_gps_msg.vn = data.velocity_north;
+  hil_gps_msg.ve = data.velocity_east;
+  hil_gps_msg.vd = data.velocity_down;
+  hil_gps_msg.cog = data.cog;
+  hil_gps_msg.satellites_visible = data.satellites_visible;
+  hil_gps_msg.id = data.id;
+
+  // send HIL_GPS Mavlink msg
+  if (!hil_mode_ || (hil_mode_ && !hil_state_level_)) {
+    mavlink_message_t msg;
+    mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &hil_gps_msg);
+    send_mavlink_message(&msg);
+  }
+}
+
+void MavlinkInterface::UpdateBarometer(const SensorData::Barometer &data, int id) {
+  const std::lock_guard<std::mutex> lock(sensor_msg_mutex_);
+  for (auto& instance : hil_data_) {
+    if (instance.id == id) {
+      instance.temperature = data.temperature;
+      instance.abs_pressure = data.abs_pressure;
+      instance.pressure_alt = data.pressure_alt;
+      instance.baro_updated = true;
+      return;
+    }
+  }
+  //Register new HIL instance if we have never seen the id
+  RegisterNewHILSensorInstance(id);
+}
+
+void MavlinkInterface::UpdateAirspeed(const SensorData::Airspeed &data, int id) {
+  const std::lock_guard<std::mutex> lock(sensor_msg_mutex_);
+  for (auto& instance : hil_data_) {
+    if (instance.id == id) {
+      instance.diff_pressure = data.diff_pressure;
+      instance.diff_press_updated = true;
+      return;
+    }
+  }
+  //Register new HIL instance if we have never seen the id
+  RegisterNewHILSensorInstance(id);
+}
+
+void MavlinkInterface::UpdateIMU(const SensorData::Imu &data, int id) {
+  const std::lock_guard<std::mutex> lock(sensor_msg_mutex_);
+  for (auto& instance : hil_data_) {
+    if (instance.id == id) {
+      instance.accel_b = data.accel_b;
+      instance.gyro_b = data.gyro_b;
+      instance.imu_updated = true;
+      return;
+    }
+  }
+  //Register new HIL instance if we have never seen the id
+  RegisterNewHILSensorInstance(id);
+}
+
+void MavlinkInterface::UpdateMag(const SensorData::Magnetometer &data, int id) {
+  const std::lock_guard<std::mutex> lock(sensor_msg_mutex_);
+  for (auto& instance : hil_data_) {
+    if (instance.id == id) {
+      instance.mag_b = data.mag_b;
+      instance.mag_updated = true;
+      return;
+    }
+  }
+  //Register new HIL instance if we have never seen the id
+  RegisterNewHILSensorInstance(id);
+}
+
+void MavlinkInterface::RegisterNewHILSensorInstance(int id) {
+  HILData new_instance;
+  new_instance.id = id;
+  hil_data_.push_back(new_instance);
 }
 
 void MavlinkInterface::pollForMAVLinkMessages()
@@ -200,7 +376,8 @@ void MavlinkInterface::pollForMAVLinkMessages()
   received_actuator_ = false;
 
   do {
-    int timeout_ms = (received_first_actuator_ && enable_lockstep_) ? 1000 : 0;
+    const bool needs_to_wait_for_actuator = received_first_actuator_ && enable_lockstep_;
+    int timeout_ms = needs_to_wait_for_actuator ? 1000 : 0;
     int ret = ::poll(&fds_[0], N_FDS, timeout_ms);
 
     if (ret < 0) {
@@ -208,8 +385,10 @@ void MavlinkInterface::pollForMAVLinkMessages()
       return;
     }
 
-    if (ret == 0 && timeout_ms > 0) {
-      std::cerr << "poll timeout\n";
+    if (ret == 0) {
+      if (needs_to_wait_for_actuator) {
+        std::cerr << "poll timeout\n";
+      }
       return;
     }
 
@@ -247,7 +426,7 @@ void MavlinkInterface::pollForMAVLinkMessages()
         mavlink_status_t status;
         for (unsigned i = 0; i < len; ++i) {
           if (mavlink_parse_char(MAVLINK_COMM_0, buf_[i], &msg, &status)) {
-            if (hil_mode_) {
+            if (hil_mode_ && serial_enabled_) {
               send_mavlink_message(&msg);
             }
             handle_message(&msg);
@@ -255,7 +434,7 @@ void MavlinkInterface::pollForMAVLinkMessages()
         }
       }
     }
-  } while (!close_conn_ && received_first_actuator_ && !received_actuator_ && enable_lockstep_ && !gotSigInt_);
+  } while (!close_conn_ && !gotSigInt_ && !received_actuator_);
 }
 
 void MavlinkInterface::pollFromQgcAndSdk()
@@ -325,34 +504,47 @@ void MavlinkInterface::acceptConnections()
 
   // assign socket to connection descriptor on success
   fds_[CONNECTION_FD].fd = ret; // socket is replaced with latest connection
-  fds_[CONNECTION_FD].events = POLLIN | POLLOUT; // read/write
+  fds_[CONNECTION_FD].events = POLLIN;
 }
 
 void MavlinkInterface::handle_message(mavlink_message_t *msg)
 {
   switch (msg->msgid) {
+  case MAVLINK_MSG_ID_HEARTBEAT:
+    handle_heartbeat(msg);
+    break;
   case MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS:
-    const std::lock_guard<std::mutex> lock(actuator_mutex_);
-
-    mavlink_hil_actuator_controls_t controls;
-    mavlink_msg_hil_actuator_controls_decode(msg, &controls);
-
-    armed_ = (controls.mode & MAV_MODE_FLAG_SAFETY_ARMED);
-
-    for (unsigned i = 0; i < n_out_max; i++) {
-      input_index_[i] = i;
-    }
-
-    // set rotor speeds, controller targets
-    input_reference_.resize(n_out_max);
-    for (int i = 0; i < input_reference_.size(); i++) {
-      input_reference_[i] = controls.controls[i];
-    }
-
-    received_actuator_ = true;
-    received_first_actuator_ = true;
+    handle_actuator_controls(msg);
     break;
   }
+}
+
+void MavlinkInterface::handle_heartbeat(mavlink_message_t *)
+{
+  received_heartbeats_ = true;
+}
+
+void MavlinkInterface::handle_actuator_controls(mavlink_message_t *msg)
+{
+  const std::lock_guard<std::mutex> lock(actuator_mutex_);
+
+  mavlink_hil_actuator_controls_t controls;
+  mavlink_msg_hil_actuator_controls_decode(msg, &controls);
+
+  armed_ = (controls.mode & MAV_MODE_FLAG_SAFETY_ARMED);
+
+  for (unsigned i = 0; i < n_out_max; i++) {
+    input_index_[i] = i;
+  }
+
+  // set rotor speeds, controller targets
+  input_reference_.resize(n_out_max);
+  for (int i = 0; i < input_reference_.size(); i++) {
+    input_reference_[i] = controls.controls[i];
+  }
+
+  received_actuator_ = true;
+  received_first_actuator_ = true;
 }
 
 void MavlinkInterface::forward_mavlink_message(const mavlink_message_t *message)
@@ -412,24 +604,6 @@ void MavlinkInterface::send_mavlink_message(const mavlink_message_t *message)
     int packetlen = mavlink_msg_to_send_buffer(buffer, message);
 
     if (fds_[CONNECTION_FD].fd > 0) {
-      int timeout_ms = (received_first_actuator_ && enable_lockstep_) ? 1000 : 0;
-      int ret = ::poll(&fds_[0], N_FDS, timeout_ms);
-
-      if (ret < 0) {
-        std::cerr << "poll error: " << strerror(errno) << "\n";
-        return;
-      }
-
-      if (ret == 0 && timeout_ms > 0) {
-        std::cerr << "poll timeout\n";
-        return;
-      }
-
-      if (!(fds_[CONNECTION_FD].revents & POLLOUT)) {
-        std::cerr << "invalid events at fd:" << fds_[CONNECTION_FD].revents << "\n";
-        return;
-      }
-
       ssize_t len;
       if (use_tcp_) {
         len = send(fds_[CONNECTION_FD].fd, buffer, packetlen, 0);
@@ -437,11 +611,13 @@ void MavlinkInterface::send_mavlink_message(const mavlink_message_t *message)
         len = sendto(fds_[CONNECTION_FD].fd, buffer, packetlen, 0, (struct sockaddr *)&remote_simulator_addr_, remote_simulator_addr_len_);
       }
       if (len < 0) {
-        std::cerr << "Failed sending mavlink message: " << strerror(errno) << "\n";
-        if (errno == ECONNRESET || errno == EPIPE) {
-          if (use_tcp_) { // udp socket remains alive
-            std::cerr << "Closing connection." << "\n";
-            close_conn_ = true;
+        if (received_first_actuator_) {
+          std::cerr << "Failed sending mavlink message: " << strerror(errno) << "\n";
+          if (errno == ECONNRESET || errno == EPIPE) {
+            if (use_tcp_) { // udp socket remains alive
+              std::cerr << "Closing connection." << "\n";
+              close_conn_ = true;
+            }
           }
         }
       }

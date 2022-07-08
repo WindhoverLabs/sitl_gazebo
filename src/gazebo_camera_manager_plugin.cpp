@@ -24,6 +24,8 @@
 #include <boost/algorithm/string.hpp>
 #include <opencv2/opencv.hpp>
 
+#include <development/mavlink.h>
+
 using namespace std;
 using namespace gazebo;
 using namespace cv;
@@ -115,7 +117,7 @@ void CameraManagerPlugin::Load(sensors::SensorPtr sensor, sdf::ElementPtr sdf)
     }
 
     if (sdf->HasElement("video_uri")) {
-        _videoURI = sdf->GetElement("video_uri")->Get<int>();
+        _videoURI = sdf->GetElement("video_uri")->Get<std::string>();
     }
     if (sdf->HasElement("system_id")) {
         _systemID = sdf->GetElement("system_id")->Get<int>();
@@ -662,7 +664,6 @@ void CameraManagerPlugin::_handle_request_video_stream_information(const mavlink
 
     // ACK command received and accepted
     _send_cmd_ack(pMsg->sysid, pMsg->compid, MAV_CMD_REQUEST_VIDEO_STREAM_INFORMATION, MAV_RESULT_ACCEPTED, srcaddr);
-    std::string uri = std::to_string(_videoURI);
 
     mavlink_message_t msg;
     mavlink_msg_video_stream_information_pack_chan(
@@ -681,7 +682,7 @@ void CameraManagerPlugin::_handle_request_video_stream_information(const mavlink
         0,                                          // Rotation (none)
         90,                                         // FOV (made up)
         name,
-        uri.c_str()
+        _videoURI.c_str()
     );
     _send_mavlink_message(&msg, srcaddr);
 }
@@ -759,6 +760,7 @@ void CameraManagerPlugin::_handle_storage_info(const mavlink_message_t *pMsg, st
     available_mib = (float)((double)si.available / (1024.0 * 1024.0));
     total_mib     = (float)((double)si.capacity  / (1024.0 * 1024.0));
     _send_cmd_ack(pMsg->sysid, pMsg->compid, MAV_CMD_REQUEST_STORAGE_INFORMATION, MAV_RESULT_ACCEPTED, srcaddr);
+    uint8_t storage_usage = STORAGE_USAGE_FLAG_SET | STORAGE_USAGE_FLAG_PHOTO | STORAGE_USAGE_FLAG_VIDEO | STORAGE_USAGE_FLAG_LOGS;
     mavlink_message_t msg;
     mavlink_msg_storage_information_pack_chan(
         _systemID,
@@ -775,7 +777,8 @@ void CameraManagerPlugin::_handle_storage_info(const mavlink_message_t *pMsg, st
         NAN,                                // read_speed,
         NAN,                                // write_speed
         STORAGE_TYPE_OTHER,                 // storage type
-        storage_name.c_str()                // storage name
+        storage_name.c_str(),               // storage name
+        storage_usage                       // storage usage
     );
     _send_mavlink_message(&msg, srcaddr);
 }

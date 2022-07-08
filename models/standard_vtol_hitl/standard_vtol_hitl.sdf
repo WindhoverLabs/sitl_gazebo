@@ -177,38 +177,14 @@
         <use_parent_model_frame>1</use_parent_model_frame>
       </axis>
     </joint>
-    <link name='standard_vtol_hitl/airspeed_link'>
+    <include>
+      <uri>model://airspeed</uri>
       <pose>0 0 0 0 0 0</pose>
-      <inertial>
-        <pose>0 0 0 0 0 0</pose>
-        <mass>0.015</mass>
-        <inertia>
-          <ixx>1e-05</ixx>
-          <ixy>0</ixy>
-          <ixz>0</ixz>
-          <iyy>1e-05</iyy>
-          <iyz>0</iyz>
-          <izz>1e-05</izz>
-        </inertia>
-      </inertial>
-    </link>
-    <joint name='standard_vtol_hitl/airspeed_joint' type='revolute'>
-      <child>standard_vtol_hitl/airspeed_link</child>
+      <name>airspeed</name>
+    </include>
+    <joint name='airspeed_joint' type='fixed'>
+      <child>airspeed::link</child>
       <parent>base_link</parent>
-      <axis>
-        <xyz>1 0 0</xyz>
-        <limit>
-          <lower>0</lower>
-          <upper>0</upper>
-          <effort>0</effort>
-          <velocity>0</velocity>
-        </limit>
-        <dynamics>
-          <spring_reference>0</spring_reference>
-          <spring_stiffness>0</spring_stiffness>
-        </dynamics>
-        <use_parent_model_frame>1</use_parent_model_frame>
-      </axis>
     </joint>
     <link name='rotor_0'>
       <pose>0.35 -0.35 0.07 0 0 0</pose>
@@ -722,7 +698,7 @@
       <parent>base_link</parent>
     </joint>
     <plugin name="left_wing_lift" filename="libLiftDragPlugin.so">
-      <alpha0>0.05984281113</alpha0>
+      <a0>0.05984281113</a0>
       <cla>4.752798721</cla>
       <cda>0.6417112299</cda>
       <cma>0.0</cma>
@@ -739,12 +715,12 @@
       <control_joint_name>
         left_elevon_joint
       </control_joint_name>
-      <cl_delta>-1.0</cl_delta>
+      <control_joint_rad_to_cl>-1.0</control_joint_rad_to_cl>
       <robotNamespace></robotNamespace>
       <windSubTopic>world_wind</windSubTopic>
     </plugin>
     <plugin name="right_wing_lift" filename="libLiftDragPlugin.so">
-      <alpha0>0.05984281113</alpha0>
+      <a0>0.05984281113</a0>
       <cla>4.752798721</cla>
       <cda>0.6417112299</cda>
       <cma>0.0</cma>
@@ -761,12 +737,12 @@
       <control_joint_name>
         right_elevon_joint
       </control_joint_name>
-      <cl_delta>-1.0</cl_delta>
+      <control_joint_rad_to_cl>-1.0</control_joint_rad_to_cl>
       <robotNamespace></robotNamespace>
       <windSubTopic>world_wind</windSubTopic>
     </plugin>
     <plugin name="elevator_lift" filename="libLiftDragPlugin.so">
-      <alpha0>-0.2</alpha0>
+      <a0>-0.2</a0>
       <cla>4.752798721</cla>
       <cda>0.6417112299</cda>
       <cma>0.0</cma>
@@ -783,12 +759,12 @@
       <control_joint_name>
         elevator_joint
       </control_joint_name>
-      <cl_delta>-12.0</cl_delta>
+      <control_joint_rad_to_cl>-12.0</control_joint_rad_to_cl>
       <robotNamespace></robotNamespace>
       <windSubTopic>world_wind</windSubTopic>
     </plugin>
     <plugin name="rudder_lift" filename="libLiftDragPlugin.so">
-      <alpha0>0.0</alpha0>
+      <a0>0.0</a0>
       <cla>4.752798721</cla>
       <cda>0.6417112299</cda>
       <cma>0.0.</cma>
@@ -918,10 +894,6 @@
       <robotNamespace/>
       <pubRate>50</pubRate>
       <baroTopic>/baro</baroTopic>
-    </plugin>
-    <plugin name='airspeed_plugin' filename='libgazebo_airspeed_plugin.so'>
-      <robotNamespace/>
-      <linkName>standard_vtol_hitl/airspeed_link</linkName>
     </plugin>
     <plugin name='mavlink_interface' filename='libgazebo_mavlink_interface.so'>
       <robotNamespace/>
