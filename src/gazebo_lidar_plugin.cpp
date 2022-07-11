@@ -19,15 +19,7 @@
  * Author: Nate Koenig mod by John Hsu
  */
 
-#include "gazebo/physics/physics.hh"
 #include "gazebo_lidar_plugin.h"
-
-#include <gazebo/common/common.hh>
-#include <gazebo/common/Plugin.hh>
-#include <gazebo/gazebo.hh>
-#include <gazebo/physics/physics.hh>
-#include "gazebo/transport/transport.hh"
-#include "gazebo/msgs/msgs.hh"
 
 #include <chrono>
 #include <cmath>
@@ -35,93 +27,166 @@
 #include <memory>
 #include <stdio.h>
 #include <boost/algorithm/string.hpp>
+#include <common.h>
+#include <ignition/math/Rand.hh>
 
 using namespace gazebo;
 using namespace std;
 
 // Register this plugin with the simulator
-GZ_REGISTER_SENSOR_PLUGIN(RayPlugin)
+GZ_REGISTER_SENSOR_PLUGIN(LidarPlugin)
 
 /////////////////////////////////////////////////
-RayPlugin::RayPlugin()
+LidarPlugin::LidarPlugin()
 {
 }
 
 /////////////////////////////////////////////////
-RayPlugin::~RayPlugin()
+LidarPlugin::~LidarPlugin()
 {
-#if GAZEBO_MAJOR_VERSION >= 7
-  this->parentSensor->LaserShape()->DisconnectNewLaserScans(
-#else
-  this->parentSensor->GetLaserShape()->DisconnectNewLaserScans(
-#endif
-      this->newLaserScansConnection);
-  this->newLaserScansConnection.reset();
-
-  this->parentSensor.reset();
-  this->world.reset();
+  newLaserScansConnection_->~Connection();
+  newLaserScansConnection_.reset();
+  parentSensor_.reset();
+  world_->Reset();
 }
 
 /////////////////////////////////////////////////
-void RayPlugin::Load(sensors::SensorPtr _parent, sdf::ElementPtr _sdf)
+void LidarPlugin::Load(sensors::SensorPtr _parent, sdf::ElementPtr _sdf)
 {
   // Get then name of the parent sensor
-  this->parentSensor =
-#if GAZEBO_MAJOR_VERSION >= 7
-    std::dynamic_pointer_cast<sensors::RaySensor>(_parent);
-#else
-    boost::dynamic_pointer_cast<sensors::RaySensor>(_parent);
-#endif
+  parentSensor_ = std::dynamic_pointer_cast<sensors::RaySensor>(_parent);
 
-  if (!this->parentSensor)
-    gzthrow("RayPlugin requires a Ray Sensor as its parent");
+  if (!parentSensor_)
+    gzthrow("LidarPlugin requires a Ray Sensor as its parent");
 
-#if GAZEBO_MAJOR_VERSION >= 7
-  this->world = physics::get_world(this->parentSensor->WorldName());
-#else
-  this->world = physics::get_world(this->parentSensor->GetWorldName());
-#endif
+  world_ = physics::get_world(parentSensor_->WorldName());
 
-  this->newLaserScansConnection =
-#if GAZEBO_MAJOR_VERSION >= 7
-    this->parentSensor->LaserShape()->ConnectNewLaserScans(
-#else
-    this->parentSensor->GetLaserShape()->ConnectNewLaserScans(
-#endif
-      boost::bind(&RayPlugin::OnNewLaserScans, this));
+  newLaserScansConnection_ = parentSensor_->LaserShape()->ConnectNewLaserScans(
+      boost::bind(&LidarPlugin::OnNewLaserScans, this));
 
   if (_sdf->HasElement("robotNamespace"))
     namespace_ = _sdf->GetElement("robotNamespace")->Get<std::string>();
   else
     gzwarn << "[gazebo_lidar_plugin] Please specify a robotNamespace.\n";
 
+  if (_sdf->HasElement("simulate_fog")) {
+    simulate_fog_ = _sdf->GetElement("simulate_fog")->Get<bool>();
+  } else {
+    simulate_fog_ = false;
+  }
+  // get minimum distance
+  if (_sdf->HasElement("min_distance")) {
+    min_distance_ = _sdf->GetElement("min_distance")->Get<double>();
+    if (min_distance_ < kSensorMinDistance) {
+      min_distance_ = kSensorMinDistance;
+    }
+  } else {
+    gzwarn << "[gazebo_lidar_plugin] Using default minimum distance: " << kDefaultMinDistance << "\n";
+    min_distance_ = kDefaultMinDistance;
+  }
+
+  // get maximum distance
+  if (_sdf->HasElement("max_distance")) {
+    max_distance_ = _sdf->GetElement("max_distance")->Get<double>();
+    if (max_distance_ > kSensorMaxDistance) {
+      max_distance_ = kSensorMaxDistance;
+    }
+  } else {
+    gzwarn << "[gazebo_lidar_plugin] Using default maximum distance: " << kDefaultMaxDistance << "\n";
+    max_distance_ = kDefaultMaxDistance;
+  }
+
+  // Set high and low signal strength
+  // The considered relationship of distance to returned signal strength is an
+  // inverse square.
+  low_signal_strength_ = sqrt(min_distance_);
+  high_signal_strength_ = sqrt(max_distance_ + 0.02); // extend the threshold so there is still quality at max distance
+
   node_handle_ = transport::NodePtr(new transport::Node());
   node_handle_->Init(namespace_);
 
-#if GAZEBO_MAJOR_VERSION >= 7
+  // Get the root model name
   const string scopedName = _parent->ParentName();
-#else
-  const string scopedName = _parent->GetParentName();
-#endif
-  string topicName = "~/" + scopedName + "/lidar";
-  boost::replace_all(topicName, "::", "/");
+  vector<string> names_splitted;
+  boost::split(names_splitted, scopedName, boost::is_any_of("::"));
+  names_splitted.erase(std::remove_if(begin(names_splitted), end(names_splitted),
+                            [](const string& name)
+                            { return name.size() == 0; }), end(names_splitted));
+  std::string rootModelName = names_splitted.front(); // The first element is the name of the root model
 
-  lidar_pub_ = node_handle_->Advertise<lidar_msgs::msgs::lidar>(topicName, 10);
+  // the second to the last name is the model name
+  const std::string parentSensorModelName = names_splitted.rbegin()[1];
+
+  // get lidar topic name
+  if(_sdf->HasElement("topic")) {
+    lidar_topic_ = parentSensor_->Topic();
+  } else {
+    // if not set by parameter, get the topic name from the model name
+    lidar_topic_ = parentSensorModelName;
+    gzwarn << "[gazebo_lidar_plugin]: " + names_splitted.front() + "::" + names_splitted.rbegin()[1] +
+      " using lidar topic \"" << parentSensorModelName << "\"\n";
+  }
+
+  // Calculate parent sensor rotation WRT `base_link`
+  const ignition::math::Quaterniond q_ls = parentSensor_->Pose().Rot();
+
+  // Set the orientation
+  orientation_.set_x(q_ls.X());
+  orientation_.set_y(q_ls.Y());
+  orientation_.set_z(q_ls.Z());
+  orientation_.set_w(q_ls.W());
+
+  // start lidar topic publishing
+  lidar_pub_ = node_handle_->Advertise<sensor_msgs::msgs::Range>("~/" + names_splitted[0] + "/link/" + lidar_topic_, 10);
 }
 
 /////////////////////////////////////////////////
-void RayPlugin::OnNewLaserScans()
+void LidarPlugin::OnNewLaserScans()
 {
-  lidar_message.set_time_msec(0);
-#if GAZEBO_MAJOR_VERSION >= 7
-  lidar_message.set_min_distance(parentSensor->RangeMin());
-  lidar_message.set_max_distance(parentSensor->RangeMax());
-  lidar_message.set_current_distance(parentSensor->Range(0));
+  // Get the current simulation time.
+#if GAZEBO_MAJOR_VERSION >= 9
+  common::Time now = world_->SimTime();
 #else
-  lidar_message.set_min_distance(parentSensor->GetRangeMin());
-  lidar_message.set_max_distance(parentSensor->GetRangeMax());
-  lidar_message.set_current_distance(parentSensor->GetRange(0));
+  common::Time now = world_->GetSimTime();
 #endif
 
-  lidar_pub_->Publish(lidar_message);
+  lidar_message_.set_time_usec(now.Double() * 1e6);
+  lidar_message_.set_min_distance(min_distance_);
+  lidar_message_.set_max_distance(max_distance_);
+
+  // get current distance measured from the sensor
+  double current_distance = parentSensor_->Range(0);
+
+  // set distance to min/max if actual value is smaller/bigger
+  if (simulate_fog_ && current_distance > 2.0f) {
+    double whiteNoise = ignition::math::Rand::DblNormal(0.0f, 0.1f);
+    current_distance = 2.0f + whiteNoise;
+  } else if (current_distance < min_distance_ || std::isinf(current_distance)) {
+    current_distance = min_distance_;
+  } else if (current_distance > max_distance_) {
+    current_distance = max_distance_;
+  }
+
+
+  lidar_message_.set_current_distance(current_distance);
+  lidar_message_.set_h_fov(kDefaultFOV);
+  lidar_message_.set_v_fov(kDefaultFOV);
+  lidar_message_.set_allocated_orientation(new gazebo::msgs::Quaternion(orientation_));
+
+  // Compute signal strength
+  // Other effects like target size, shape or reflectivity are not considered
+  const double signal_strength = sqrt(current_distance);
+
+  // Compute and set the signal quality
+  // The signal quality is normalized between 1 and 100 using the absolute
+  // signal strength (DISTANCE_SENSOR signal_quality value of 0 means invalid)
+  uint8_t signal_quality = 1;
+  if (signal_strength > low_signal_strength_) {
+    signal_quality = static_cast<uint8_t>(99 * ((high_signal_strength_ - signal_strength) /
+            (high_signal_strength_ - low_signal_strength_)) + 1);
+  }
+
+  lidar_message_.set_signal_quality(signal_quality);
+
+  lidar_pub_->Publish(lidar_message_);
 }

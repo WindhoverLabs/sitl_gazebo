@@ -35,7 +35,7 @@ namespace gazebo
 /**
  * @class GstCameraPlugin
  * A Gazebo plugin that can be attached to a camera and then streams the video data using gstreamer.
- * It streams to a configurable UDP port, default is 5600.
+ * It streams to a configurable UDP IP and UDP Port, defaults are respectively 127.0.0.1 and 5600.
  *
  * Connect to the stream via command line with:
  * gst-launch-1.0  -v udpsrc port=5600 caps='application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264' \
@@ -54,13 +54,23 @@ class GAZEBO_VISIBLE GstCameraPlugin : public SensorPlugin
 		unsigned int depth, const std::string &format);
 
   public: void startGstThread();
+  public: void stopGstThread();
   public: void gstCallback(GstElement *appsrc);
+
+  public: void cbVideoStream(const boost::shared_ptr<const msgs::Int> &_msg);
+  private: void startStreaming();
+  private: void stopStreaming();
 
   protected: unsigned int width, height, depth;
   float rate;
   protected: std::string format;
 
-  protected: int udpPort;
+  protected:
+    std::string udpHost;
+    int udpPort;
+    bool useRtmp;
+    std::string rtmpLocation;
+    bool useCuda;
 
   protected: sensors::CameraSensorPtr parentSensor;
   protected: rendering::CameraPtr camera;
@@ -69,13 +79,14 @@ class GAZEBO_VISIBLE GstCameraPlugin : public SensorPlugin
 
   private: transport::NodePtr node_handle_;
   private: std::string namespace_;
-  private: const std::string topicName = "gst_video";
 
-  GstBuffer *frameBuffer;
-  std::mutex frameBufferMutex;
-  GMainLoop *mainLoop;
-  GstClockTime gstTimestamp;
+  private: transport::SubscriberPtr mVideoSub;
+  private: pthread_t mThreadId;
+  private: const std::string mTopicName = "~/video_stream";
+  private: bool mIsActive;
 
+  GMainLoop *gst_loop;
+  GstElement *source;
 };
 
 } /* namespace gazebo */

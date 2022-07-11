@@ -1,5 +1,7 @@
 /*
- * Copyright 2016 Austin Buchan, Nils Rottmann, TUHH Hamburg, Germany
+ * Copyright 2020 Daniel Duecker, TU Hamburg, Germany
+ * Copyright 2020 Philipp Hastedt, TU Hamburg, Germany
+ * based on prior work by Nils Rottmann and Austin Buchan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,82 +16,68 @@
  * limitations under the License.
  */
 
-#include <string>
-#include <gazebo/common/common.hh>
-#include <gazebo/common/Plugin.hh>
+
+
+#include <stdio.h>
+#include <boost/bind.hpp>
+#include <Eigen/Eigen>
 #include <gazebo/gazebo.hh>
 #include <gazebo/physics/physics.hh>
-
-#include "common.h"
-#include "gazebo/math/Vector3.hh"
+#include <gazebo/common/common.hh>
+#include <gazebo/common/Plugin.hh>
+#include <rotors_model/motor_model.hpp>
 #include "gazebo/transport/transport.hh"
 #include "gazebo/msgs/msgs.hh"
-#include "CommandMotorSpeed.pb.h"
+#include "Float.pb.h"
+#include "common.h"
 
 namespace gazebo {
 
-// Default values
-static const std::string kDefaultNamespace = "";
-static const std::string kDefaultCommandSubTopic = "/gazebo/command/motor_speed";
-static const std::string kDefaultLinkName = "base_link";        // the link name of the base hippocampus, see sdf file
-
-typedef const boost::shared_ptr<const mav_msgs::msgs::CommandMotorSpeed> CommandMotorSpeedPtr;
-
-// define class GazeboUUVPlugin
 class GazeboUUVPlugin : public ModelPlugin {
+ public:
+  GazeboUUVPlugin() : ModelPlugin(){}
 
-  public:
-    GazeboUUVPlugin() :
-      ModelPlugin(),
-      namespace_(kDefaultNamespace),                        // definde namespace, topic and link_name
-      command_sub_topic_(kDefaultCommandSubTopic),
-      link_name_(kDefaultLinkName) {}
+  virtual ~GazeboUUVPlugin();
+  virtual void InitializeParams();
+  void ParseBuoyancy(sdf::ElementPtr _sdf);
+  void ApplyBuoyancy();
+  virtual void Publish();
+ protected:
+  virtual void UpdateForcesAndMoments();
+  virtual void Load(physics::ModelPtr _model, sdf::ElementPtr _sdf);
+  virtual void OnUpdate(const common::UpdateInfo &);
 
-    virtual ~GazeboUUVPlugin();
+ private:
+  struct buoyancy_s {
+    std::string model_name;
+    physics::LinkPtr link;
+    ignition::math::Vector3d buoyancy_force;
+    ignition::math::Vector3d cob;
+    double height_scale_limit;
+  };
+  std::vector<buoyancy_s> buoyancy_links_;
+  std::string namespace_;
+  std::string link_base_;
 
-  protected:
-    void Load(physics::ModelPtr _model, sdf::ElementPtr _sdf);
-    void OnUpdate(const common::UpdateInfo&);
+  /* Hydro coefficients - FOSSEN 2011 */
+  double X_u_;
+  double Y_v_;
+  double Z_w_;
+  double K_p_;
+  double M_q_;
+  double N_r_;
 
-  private:
-    event::ConnectionPtr update_connection_;
-    
-    std::string namespace_;
-    std::string command_sub_topic_;
-    std::string link_name_;
-    
-    transport::NodePtr node_handle_;
-    transport::SubscriberPtr command_sub_;
-    
-    physics::LinkPtr link_;
-    physics::Link_V rotor_links_;
+  double X_udot_;
+  double Y_vdot_;
+  double Z_wdot_;
+  double K_pdot_;
+  double M_qdot_;
+  double N_rdot_;
 
-    void CommandCallback(CommandMotorSpeedPtr &command);
-    double command_[4];
+  transport::NodePtr node_handle_;
+  physics::ModelPtr model_;
+  physics::LinkPtr baseLink_;
+  event::ConnectionPtr updateConnection_;
 
-    double last_time_;
-    double time_delta_;
-    
-    double motor_force_constant_;
-    double motor_torque_constant_;
-
-    double X_u_;
-    double Y_v_;
-    double Z_w_;
-    double K_p_;
-    double M_q_;
-    double N_r_;
-
-    double X_udot_;
-    double Y_vdot_;
-    double Z_wdot_;
-    double K_pdot_;
-    double M_qdot_;
-    double N_rdot_;
-
-    // variables for debugging
-    double time_;
-    double counter_;
 };
-
 }

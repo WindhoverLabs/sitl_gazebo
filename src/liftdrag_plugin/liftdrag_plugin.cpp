@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <string>
 
+#include "common.h"
 #include "gazebo/common/Assert.hh"
 #include "gazebo/physics/physics.hh"
 #include "gazebo/sensors/SensorManager.hh"
@@ -25,16 +26,19 @@
 #include "gazebo/msgs/msgs.hh"
 #include "liftdrag_plugin/liftdrag_plugin.h"
 
+#include "Force.pb.h"
+
 using namespace gazebo;
 
 GZ_REGISTER_MODEL_PLUGIN(LiftDragPlugin)
 
 /////////////////////////////////////////////////
-LiftDragPlugin::LiftDragPlugin() : cla(1.0), cda(0.01), cma(0.01), rho(1.2041)
+LiftDragPlugin::LiftDragPlugin() : cla(1.0), cda(0.01), cma(0.0), rho(1.2041)
 {
-  this->cp = math::Vector3(0, 0, 0);
-  this->forward = math::Vector3(1, 0, 0);
-  this->upward = math::Vector3(0, 0, 1);
+  this->cp = ignition::math::Vector3d(0, 0, 0);
+  this->forward = ignition::math::Vector3d(1, 0, 0);
+  this->upward = ignition::math::Vector3d(0, 0, 1);
+  this->wind_vel_ = ignition::math::Vector3d(0.0, 0.0, 0.0);
   this->area = 1.0;
   this->alpha0 = 0.0;
   this->alpha = 0.0;
@@ -53,6 +57,9 @@ LiftDragPlugin::LiftDragPlugin() : cla(1.0), cda(0.01), cma(0.01), rho(1.2041)
 
   /// how much to change CL per every radian of the control joint value
   this->controlJointRadToCL = 4.0;
+
+  // How much Cm changes with a change in control surface deflection angle
+  this->cm_delta = 0.0;
 }
 
 /////////////////////////////////////////////////
@@ -72,7 +79,13 @@ void LiftDragPlugin::Load(physics::ModelPtr _model,
   this->world = this->model->GetWorld();
   GZ_ASSERT(this->world, "LiftDragPlugin world pointer is NULL");
 
+#if GAZEBO_MAJOR_VERSION >= 9
+  this->physics = this->world->Physics();
+  this->last_pub_time = this->world->SimTime();
+#else
   this->physics = this->world->GetPhysicsEngine();
+  this->last_pub_time = this->world->GetSimTime();
+#endif
   GZ_ASSERT(this->physics, "LiftDragPlugin physics pointer is NULL");
 
   GZ_ASSERT(_sdf, "LiftDragPlugin _sdf pointer is NULL");
@@ -104,17 +117,20 @@ void LiftDragPlugin::Load(physics::ModelPtr _model,
   if (_sdf->HasElement("cma_stall"))
     this->cmaStall = _sdf->Get<double>("cma_stall");
 
+    if (_sdf->HasElement("cm_delta"))
+        this->cm_delta = _sdf->Get<double>("cm_delta");
+
   if (_sdf->HasElement("cp"))
-    this->cp = _sdf->Get<math::Vector3>("cp");
+    this->cp = _sdf->Get<ignition::math::Vector3d>("cp");
 
   // blade forward (-drag) direction in link frame
   if (_sdf->HasElement("forward"))
-    this->forward = _sdf->Get<math::Vector3>("forward");
+    this->forward = _sdf->Get<ignition::math::Vector3d>("forward");
   this->forward.Normalize();
 
   // blade upward (+lift) direction in link frame
   if (_sdf->HasElement("upward"))
-    this->upward = _sdf->Get<math::Vector3>("upward");
+    this->upward = _sdf->Get<ignition::math::Vector3d>("upward");
   this->upward.Normalize();
 
   if (_sdf->HasElement("area"))
@@ -143,6 +159,26 @@ void LiftDragPlugin::Load(physics::ModelPtr _model,
     }
   }
 
+  if (_sdf->HasElement("robotNamespace"))
+  {
+    namespace_ = _sdf->GetElement("robotNamespace")->Get<std::string>();
+  } else {
+    gzerr << "[gazebo_liftdrag_plugin] Please specify a robotNamespace.\n";
+  }
+  node_handle_ = transport::NodePtr(new transport::Node());
+  node_handle_->Init(namespace_);
+
+  if (_sdf->HasElement("topic_name")) {
+      const auto lift_force_topic = this->sdf->Get<std::string>("topic_name");
+      lift_force_pub_ = node_handle_->Advertise<physics_msgs::msgs::Force>("~/" + lift_force_topic);
+      gzdbg << "Publishing to ~/" << lift_force_topic << std::endl;
+  }
+
+  if (_sdf->HasElement("windSubTopic")){
+    this->wind_sub_topic_ = _sdf->Get<std::string>("windSubTopic");
+    wind_sub_ = node_handle_->Subscribe("~/" + wind_sub_topic_, &LiftDragPlugin::WindVelocityCallback, this);
+  }
+
   if (_sdf->HasElement("control_joint_name"))
   {
     std::string controlJointName = _sdf->Get<std::string>("control_joint_name");
@@ -162,54 +198,65 @@ void LiftDragPlugin::OnUpdate()
 {
   GZ_ASSERT(this->link, "Link was NULL");
   // get linear velocity at cp in inertial frame
-  math::Vector3 vel = this->link->GetWorldLinearVel(this->cp);
-  math::Vector3 velI = vel;
+#if GAZEBO_MAJOR_VERSION >= 9
+  ignition::math::Vector3d vel = this->link->WorldLinearVel(this->cp) - wind_vel_;
+  const common::Time current_time = this->world->SimTime();
+#else
+  ignition::math::Vector3d vel = ignitionFromGazeboMath(this->link->GetWorldLinearVel(this->cp)) - wind_vel_;
+  const common::Time current_time = this->world->GetSimTime();
+#endif
+  ignition::math::Vector3d velI = vel;
   velI.Normalize();
+  const double dt = (current_time - this->last_pub_time).Double();
 
-  // smoothing
-  // double e = 0.8;
-  // this->velSmooth = e*vel + (1.0 - e)*velSmooth;
-  // vel = this->velSmooth;
-
-  if (vel.GetLength() <= 0.01)
+  if (vel.Length() <= 0.01)
     return;
 
   // pose of body
-  math::Pose pose = this->link->GetWorldPose();
+#if GAZEBO_MAJOR_VERSION >= 9
+  ignition::math::Pose3d pose = this->link->WorldPose();
+#else
+  ignition::math::Pose3d pose = ignitionFromGazeboMath(this->link->GetWorldPose());
+#endif
 
   // rotate forward and upward vectors into inertial frame
-  math::Vector3 forwardI = pose.rot.RotateVector(this->forward);
+  ignition::math::Vector3d forwardI = pose.Rot().RotateVector(this->forward);
 
-  math::Vector3 upwardI;
+  if (forwardI.Dot(vel) <= 0.0){
+    // Only calculate lift or drag if the wind relative velocity is in the same direction
+    return;
+  }
+
+  ignition::math::Vector3d upwardI;
   if (this->radialSymmetry)
   {
     // use inflow velocity to determine upward direction
     // which is the component of inflow perpendicular to forward direction.
-    math::Vector3 tmp = forwardI.Cross(velI);
+    ignition::math::Vector3d tmp = forwardI.Cross(velI);
     upwardI = forwardI.Cross(tmp).Normalize();
   }
   else
   {
-    upwardI = pose.rot.RotateVector(this->upward);
+    upwardI = pose.Rot().RotateVector(this->upward);
   }
 
   // spanwiseI: a vector normal to lift-drag-plane described in inertial frame
-  math::Vector3 spanwiseI = forwardI.Cross(upwardI).Normalize();
+  ignition::math::Vector3d spanwiseI = forwardI.Cross(upwardI).Normalize();
 
   const double minRatio = -1.0;
   const double maxRatio = 1.0;
   // check sweep (angle between velI and lift-drag-plane)
-  double sinSweepAngle = math::clamp(
+  double sinSweepAngle = ignition::math::clamp(
       spanwiseI.Dot(velI), minRatio, maxRatio);
 
-  // get cos from trig identity
-  double cosSweepAngle = 1.0 - sinSweepAngle * sinSweepAngle;
   this->sweep = asin(sinSweepAngle);
 
   // truncate sweep to within +/-90 deg
   while (fabs(this->sweep) > 0.5 * M_PI)
     this->sweep = this->sweep > 0 ? this->sweep - M_PI
                                   : this->sweep + M_PI;
+  // get cos from trig identity
+  double cosSweepAngle = sqrt(1.0 - sin(this->sweep) * sin(this->sweep));
 
   // angle of attack is the angle between
   // velI projected into lift-drag plane
@@ -220,25 +267,25 @@ void LiftDragPlugin::OnUpdate()
   //
   // so,
   // removing spanwise velocity from vel
-  math::Vector3 velInLDPlane = vel - vel.Dot(spanwiseI)*velI;
+  ignition::math::Vector3d velInLDPlane = vel - vel.Dot(spanwiseI)*spanwiseI;
 
   // get direction of drag
-  math::Vector3 dragDirection = -velInLDPlane;
+  ignition::math::Vector3d dragDirection = -velInLDPlane;
   dragDirection.Normalize();
 
   // get direction of lift
-  math::Vector3 liftI = spanwiseI.Cross(velInLDPlane);
+  ignition::math::Vector3d liftI = spanwiseI.Cross(velInLDPlane);
   liftI.Normalize();
 
   // get direction of moment
-  math::Vector3 momentDirection = spanwiseI;
+  ignition::math::Vector3d momentDirection = spanwiseI;
 
   // compute angle between upwardI and liftI
   // in general, given vectors a and b:
   //   cos(theta) = a.Dot(b)/(a.Length()*b.Lenghth())
   // given upwardI and liftI are both unit vectors, we can drop the denominator
   //   cos(theta) = a.Dot(b)
-  double cosAlpha = math::clamp(liftI.Dot(upwardI), minRatio, maxRatio);
+  double cosAlpha = ignition::math::clamp(liftI.Dot(upwardI), minRatio, maxRatio);
 
   // Is alpha positive or negative? Test:
   // forwardI points toward zero alpha
@@ -255,7 +302,7 @@ void LiftDragPlugin::OnUpdate()
                                   : this->alpha + M_PI;
 
   // compute dynamic pressure
-  double speedInLDPlane = velInLDPlane.GetLength();
+  double speedInLDPlane = velInLDPlane.Length();
   double q = 0.5 * this->rho * speedInLDPlane * speedInLDPlane;
 
   // compute cl at cp, check for stall, correct for sweep
@@ -280,15 +327,20 @@ void LiftDragPlugin::OnUpdate()
     cl = this->cla * this->alpha * cosSweepAngle;
 
   // modify cl per control joint value
+  double controlAngle;
   if (this->controlJoint)
   {
-    double controlAngle = this->controlJoint->GetAngle(0).Radian();
+#if GAZEBO_MAJOR_VERSION >= 9
+    controlAngle = this->controlJoint->Position(0);
+#else
+    controlAngle = this->controlJoint->GetAngle(0).Radian();
+#endif
     cl = cl + this->controlJointRadToCL * controlAngle;
-    /// \TODO: also change cm and cd
+    /// \TODO: also change cd
   }
 
   // compute lift force at cp
-  math::Vector3 lift = cl * q * this->area * liftI;
+  ignition::math::Vector3d lift = cl * q * this->area * liftI;
 
   // compute cd at cp, check for stall, correct for sweep
   double cd;
@@ -311,7 +363,7 @@ void LiftDragPlugin::OnUpdate()
   cd = fabs(cd);
 
   // drag at cp
-  math::Vector3 drag = cd * q * this->area * dragDirection;
+  ignition::math::Vector3d drag = cd * q * this->area * dragDirection;
 
   // compute cm at cp, check for stall, correct for sweep
   double cm;
@@ -334,31 +386,21 @@ void LiftDragPlugin::OnUpdate()
   else
     cm = this->cma * this->alpha * cosSweepAngle;
 
-  /// \TODO: implement cm
-  /// for now, reset cm to zero, as cm needs testing
-  cm = 0.0;
+  // Take into account the effect of control surface deflection angle to Cm
+  cm += this->cm_delta * controlAngle;
 
   // compute moment (torque) at cp
-  math::Vector3 moment = cm * q * this->area * momentDirection;
+  ignition::math::Vector3d moment = cm * q * this->area * momentDirection;
 
-  // moment arm from cg to cp in inertial plane
-  math::Vector3 momentArm = pose.rot.RotateVector(
-    this->cp - this->link->GetInertial()->GetCoG());
-  // gzerr << this->cp << " : " << this->link->GetInertial()->GetCoG() << "\n";
-
-  // force and torque about cg in inertial frame
-  math::Vector3 force = lift + drag;
-  // + moment.Cross(momentArm);
-
-  math::Vector3 torque = moment;
-  // - lift.Cross(momentArm) - drag.Cross(momentArm);
+  // force about cg in inertial frame
+  ignition::math::Vector3d force = lift + drag;
 
   // debug
   //
   // if ((this->link->GetName() == "wing_1" ||
   //      this->link->GetName() == "wing_2") &&
-  //     (vel.GetLength() > 50.0 &&
-  //      vel.GetLength() < 50.0))
+  //     (vel.Length() > 50.0 &&
+  //      vel.Length() < 50.0))
   if (0)
   {
     gzdbg << "=============================\n";
@@ -366,9 +408,9 @@ void LiftDragPlugin::OnUpdate()
     gzdbg << "Link: [" << this->link->GetName()
           << "] pose: [" << pose
           << "] dynamic pressure: [" << q << "]\n";
-    gzdbg << "spd: [" << vel.GetLength()
+    gzdbg << "spd: [" << vel.Length()
           << "] vel: [" << vel << "]\n";
-    gzdbg << "LD plane spd: [" << velInLDPlane.GetLength()
+    gzdbg << "LD plane spd: [" << velInLDPlane.Length()
           << "] vel : [" << velInLDPlane << "]\n";
     gzdbg << "forward (inertial): " << forwardI << "\n";
     gzdbg << "upward (inertial): " << upwardI << "\n";
@@ -380,17 +422,46 @@ void LiftDragPlugin::OnUpdate()
     gzdbg << "drag: " << drag << " cd: "
           << cd << " cda: " << this->cda << "\n";
     gzdbg << "moment: " << moment << "\n";
-    gzdbg << "cp momentArm: " << momentArm << "\n";
     gzdbg << "force: " << force << "\n";
-    gzdbg << "torque: " << torque << "\n";
+    gzdbg << "moment: " << moment << "\n";
   }
 
   // Correct for nan or inf
   force.Correct();
   this->cp.Correct();
-  torque.Correct();
+  moment.Correct();
 
   // apply forces at cg (with torques for position shift)
   this->link->AddForceAtRelativePosition(force, this->cp);
-  this->link->AddTorque(torque);
+  this->link->AddTorque(moment);
+
+  auto relative_center = this->link->RelativePose().Pos() + this->cp;
+
+  // Publish force and center of pressure for potential visual plugin.
+  // - dt is used to control the rate at which the force is published
+  // - it only gets published if 'topic_name' is defined in the sdf
+  if (dt > 1.0 / 10 && this->sdf->HasElement("topic_name")) {
+      msgs::Vector3d* force_center_msg = new msgs::Vector3d;
+      force_center_msg->set_x(relative_center.X());
+      force_center_msg->set_y(relative_center.Y());
+      force_center_msg->set_z(relative_center.Z());
+
+      msgs::Vector3d* force_vector_msg = new msgs::Vector3d;
+      force_vector_msg->set_x(force.X());
+      force_vector_msg->set_y(force.Y());
+      force_vector_msg->set_z(force.Z());
+
+      physics_msgs::msgs::Force force_msg;
+      force_msg.set_allocated_center(force_center_msg);
+      force_msg.set_allocated_force(force_vector_msg);
+
+      lift_force_pub_->Publish(force_msg);
+      this->last_pub_time = current_time;
+  }
+}
+
+void LiftDragPlugin::WindVelocityCallback(const boost::shared_ptr<const physics_msgs::msgs::Wind> &msg) {
+  wind_vel_ = ignition::math::Vector3d(msg->velocity().x(),
+            msg->velocity().y(),
+            msg->velocity().z());
 }

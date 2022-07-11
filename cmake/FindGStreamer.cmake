@@ -48,19 +48,6 @@
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-if (APPLE)
-    find_library(GSTREAMER NAMES GStreamer)
-    if (NOT GSTREAMER)
-        message(FATAL_ERROR "GStreamer not found")
-    else()
-        message(STATUS "GStreamer found")
-    endif()
-
-    SET(GSTREAMER_INCLUDE_DIRS ${GSTREAMER}/Headers)
-    SET(GSTREAMER_LIBRARIES "-framework GStreamer")
-    SET(GSTREAMER_FOUND true)
-
-else()
 find_package(PkgConfig)
 
 
@@ -96,7 +83,7 @@ FIND_GSTREAMER_COMPONENT(GSTREAMER_BASE gstreamer-base-1.0 gstbase-1.0)
 # 2. Find GStreamer plugins
 # -------------------------
 
-#FIND_GSTREAMER_COMPONENT(GSTREAMER_APP gstreamer-app-1.0 gstapp-1.0)
+FIND_GSTREAMER_COMPONENT(GSTREAMER_APP gstreamer-app-1.0 gstapp-1.0)
 #FIND_GSTREAMER_COMPONENT(GSTREAMER_AUDIO gstreamer-audio-1.0 gstaudio-1.0)
 #FIND_GSTREAMER_COMPONENT(GSTREAMER_FFT gstreamer-fft-1.0 gstfft-1.0)
 #FIND_GSTREAMER_COMPONENT(GSTREAMER_GL gstreamer-gl-1.0>=1.8.0 gstgl-1.0)
@@ -143,5 +130,3 @@ mark_as_advanced(
     GSTREAMER_VIDEO_INCLUDE_DIRS
     GSTREAMER_VIDEO_LIBRARIES
 )
-
-endif()

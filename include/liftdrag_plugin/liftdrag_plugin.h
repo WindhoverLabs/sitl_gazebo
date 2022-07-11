@@ -19,10 +19,14 @@
 
 #include <string>
 #include <vector>
+#include <boost/bind.hpp>
 
 #include "gazebo/common/Plugin.hh"
 #include "gazebo/physics/physics.hh"
 #include "gazebo/transport/TransportTypes.hh"
+#include <ignition/math.hh>
+
+#include "Wind.pb.h"
 
 namespace gazebo
 {
@@ -68,7 +72,7 @@ namespace gazebo
     /// where q (dynamic pressure) = 0.5 * rho * v^2
     protected: double cma;
 
-    /// \brief angle of attach when airfoil stalls
+    /// \brief angle of attack when airfoil stalls
     protected: double alphaStall;
 
     /// \brief Cl-alpha rate after stall
@@ -79,6 +83,9 @@ namespace gazebo
 
     /// \brief Cm-alpha rate after stall
     protected: double cmaStall;
+
+    /// \breif Coefficient of Moment / control surface deflection angle slope
+    protected: double cm_delta;
 
     /// \brief: \TODO: make a stall velocity curve
     protected: double velocityStall;
@@ -107,19 +114,16 @@ namespace gazebo
     protected: double alpha;
 
     /// \brief center of pressure in link local coordinates
-    protected: math::Vector3 cp;
+    protected: ignition::math::Vector3d cp;
 
     /// \brief Normally, this is taken as a direction parallel to the chord
     /// of the airfoil in zero angle of attack forward flight.
-    protected: math::Vector3 forward;
+    protected: ignition::math::Vector3d forward;
 
     /// \brief A vector in the lift/drag plane, perpendicular to the forward
     /// vector. Inflow velocity orthogonal to forward and upward vectors
     /// is considered flow in the wing sweep direction.
-    protected: math::Vector3 upward;
-
-    /// \brief Smoothed velocity
-    protected: math::Vector3 velSmooth;
+    protected: ignition::math::Vector3d upward;
 
     /// \brief Pointer to link currently targeted by mud joint.
     protected: physics::LinkPtr link;
@@ -134,6 +138,17 @@ namespace gazebo
 
     /// \brief SDF for this plugin;
     protected: sdf::ElementPtr sdf;
+
+    private: void WindVelocityCallback(const boost::shared_ptr<const physics_msgs::msgs::Wind> &msg);
+
+    private: transport::NodePtr node_handle_;
+    private: transport::SubscriberPtr wind_sub_;
+    private: transport::PublisherPtr lift_force_pub_;
+    private: common::Time last_pub_time;
+    private: msgs::Factory msg_factory_;
+    private: std::string namespace_;
+    private: std::string wind_sub_topic_ = "world_wind";
+    private: ignition::math::Vector3d wind_vel_;
   };
 }
 #endif

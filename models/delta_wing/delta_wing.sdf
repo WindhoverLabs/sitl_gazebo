@@ -210,7 +210,7 @@
     -->
 
     <!-- copied from Plane model
-    <plugin name='pusher' filename='librotors_gazebo_motor_model.so'>
+    <plugin name='pusher' filename='libgazebo_motor_model.so'>
       <robotNamespace>delta_wing</robotNamespace>
       <jointName>pusher_joint</jointName>
       <linkName>pusher</linkName>
@@ -237,8 +237,16 @@
       </gazebo_joint_control_pid>
     </plugin>
     -->
-
-    <plugin name='rotors_gazebo_imu_plugin' filename='librotors_gazebo_imu_plugin.so'>
+    <include>
+      <uri>model://gps</uri>
+      <pose>0 0 0 0 0 0</pose>
+      <name>gps</name>
+    </include>
+    <joint name='gps_joint' type='fixed'>
+      <child>gps::link</child>
+      <parent>base_link</parent>
+    </joint>
+    <plugin name='gazebo_imu_plugin' filename='libgazebo_imu_plugin.so'>
       <robotNamespace>delta_wing</robotNamespace>
       <linkName>delta_wing/imu_link</linkName>
       <imuTopic>/imu</imuTopic>
@@ -251,26 +259,37 @@
       <accelerometerBiasCorrelationTime>300.0</accelerometerBiasCorrelationTime>
       <accelerometerTurnOnBiasSigma>0.196</accelerometerTurnOnBiasSigma>
     </plugin>
-    <plugin name='mavlink_interface' filename='librotors_gazebo_mavlink_interface.so'>
+    <plugin name='groundtruth_plugin' filename='libgazebo_groundtruth_plugin.so'>
+      <robotNamespace/>
+    </plugin>
+    <plugin name='magnetometer_plugin' filename='libgazebo_magnetometer_plugin.so'>
+      <robotNamespace/>
+      <pubRate>100</pubRate>
+      <noiseDensity>0.0004</noiseDensity>
+      <randomWalk>6.4e-06</randomWalk>
+      <biasCorrelationTime>600</biasCorrelationTime>
+      <magTopic>/mag</magTopic>
+    </plugin>
+    <plugin name='barometer_plugin' filename='libgazebo_barometer_plugin.so'>
+      <robotNamespace/>
+      <pubRate>50</pubRate>
+      <baroTopic>/baro</baroTopic>
+    </plugin>
+    <plugin name='mavlink_interface' filename='libgazebo_mavlink_interface.so'>
       <robotNamespace>delta_wing</robotNamespace>
       <imuSubTopic>/imu</imuSubTopic>
+      <magSubTopic>/mag</magSubTopic>
+      <baroSubTopic>/baro</baroSubTopic>
       <mavlink_addr>$(arg mavlink_addr)</mavlink_addr>
       <mavlink_udp_port>$(arg mavlink_udp_port)</mavlink_udp_port>
+      <serialEnabled>false</serialEnabled>
+      <serialDevice>/dev/ttyACM0</serialDevice>
+      <baudRate>921600</baudRate>
+      <qgc_addr>INADDR_ANY</qgc_addr>
+      <qgc_udp_port>14550</qgc_udp_port>
+      <hil_mode>false</hil_mode>
+      <hil_state_level>false</hil_state_level>
       <motorSpeedCommandPubTopic>/gazebo/command/motor_speed</motorSpeedCommandPubTopic>
-      <!-- no elevator
-      <left_elevon_joint>
-        zephyr_delta_wing::flap_left_joint
-      </left_elevon_joint>
-      <right_elevon_joint>
-        zephyr_delta_wing::flap_right_joint
-      </right_elevon_joint>
-      <propeller_joint>
-        zephyr_delta_wing::propeller_joint
-      </propeller_joint>
-      <elevator_joint>
-        no_elevator_joint_nope
-      </elevator_joint>
-      -->
       <control_channels>
         <channel name="not_used_1">
           <input_index>0</input_index>
