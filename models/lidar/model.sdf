@@ -53,9 +53,9 @@
           <max_distance>15.0</max_distance>
         </plugin>
         <always_on>1</always_on>
-        <update_rate>20</update_rate>
-        <visualize>true</visualize>
+        <update_rate>125</update_rate>
       </sensor>
+    <visualize>true</visualize>
     </link>
   </model>
 </sdf>

@@ -995,7 +995,7 @@
             <joint_name>elevator_joint</joint_name>
           </channel>
           <channel name='left_flap'>
-            <input_index>10</input_index>
+            <input_index>9</input_index>
             <input_offset>0</input_offset>
             <input_scaling>-1</input_scaling>
             <zero_position_disarmed>0</zero_position_disarmed>
@@ -1004,7 +1004,7 @@
             <joint_name>left_flap_joint</joint_name>
           </channel>
           <channel name='right_flap'>
-            <input_index>9</input_index>
+            <input_index>10</input_index>
             <input_offset>0</input_offset>
             <input_scaling>-1</input_scaling>
             <zero_position_disarmed>0</zero_position_disarmed>
