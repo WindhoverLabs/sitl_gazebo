@@ -142,7 +142,7 @@
       <elevation>0</elevation>
       <heading_deg>0</heading_deg>
     </spherical_coordinates>
-    <model name='plane'>
+    <model name='gemini2'>
       <pose frame=''>1.01 0.98 0.83 0 -0 0</pose>
       <link name='base_link'>
         <pose frame=''>0 0 0 0 -0 0</pose>
@@ -187,7 +187,7 @@
           <geometry>
             <mesh>
               <scale>0.1 0.1 0.1</scale>
-              <uri>model://plane/meshes/body.dae</uri>
+              <uri>model://gemini2/meshes/body.dae</uri>
             </mesh>
           </geometry>
           <material>
@@ -203,7 +203,7 @@
         <enable_wind>0</enable_wind>
         <kinematic>0</kinematic>
       </link>
-      <link name='plane/imu_link'>
+      <link name='gemini2/imu_link'>
         <pose frame=''>0 0 0 0 -0 0</pose>
         <inertial>
           <pose frame=''>0 0 0 0 -0 0</pose>
@@ -221,8 +221,8 @@
         <enable_wind>0</enable_wind>
         <kinematic>0</kinematic>
       </link>
-      <joint name='plane/imu_joint' type='revolute'>
-        <child>plane/imu_link</child>
+      <joint name='gemini2/imu_joint' type='revolute'>
+        <child>gemini2/imu_link</child>
         <parent>base_link</parent>
         <axis>
           <xyz>1 0 0</xyz>
@@ -326,7 +326,7 @@
           <geometry>
             <mesh>
               <scale>1 1 1</scale>
-              <uri>model://plane/meshes/iris_prop_ccw.dae</uri>
+              <uri>model://gemini2/meshes/iris_prop_ccw.dae</uri>
             </mesh>
           </geometry>
           <material>
@@ -376,7 +376,7 @@
           <geometry>
             <mesh>
               <scale>0.1 0.1 0.1</scale>
-              <uri>model://plane/meshes/left_aileron.dae</uri>
+              <uri>model://gemini2/meshes/left_aileron.dae</uri>
             </mesh>
           </geometry>
           <material>
@@ -412,7 +412,7 @@
           <geometry>
             <mesh>
               <scale>0.1 0.1 0.1</scale>
-              <uri>model://plane/meshes/right_aileron.dae</uri>
+              <uri>model://gemini2/meshes/right_aileron.dae</uri>
             </mesh>
           </geometry>
           <material>
@@ -448,7 +448,7 @@
           <geometry>
             <mesh>
               <scale>0.1 0.1 0.1</scale>
-              <uri>model://plane/meshes/left_flap.dae</uri>
+              <uri>model://gemini2/meshes/left_flap.dae</uri>
             </mesh>
           </geometry>
           <material>
@@ -480,7 +480,7 @@
           <geometry>
             <mesh>
               <scale>0.1 0.1 0.1</scale>
-              <uri>model://plane/meshes/right_flap.dae</uri>
+              <uri>model://gemini2/meshes/right_flap.dae</uri>
             </mesh>
           </geometry>
           <material>
@@ -512,7 +512,7 @@
           <geometry>
             <mesh>
               <scale>0.1 0.1 0.1</scale>
-              <uri>model://plane/meshes/elevators.dae</uri>
+              <uri>model://gemini2/meshes/elevators.dae</uri>
             </mesh>
           </geometry>
           <material>
@@ -544,7 +544,7 @@
           <geometry>
             <mesh>
               <scale>0.1 0.1 0.1</scale>
-              <uri>model://plane/meshes/rudder.dae</uri>
+              <uri>model://gemini2/meshes/rudder.dae</uri>
             </mesh>
           </geometry>
           <material>
@@ -904,7 +904,7 @@
         <motorConstant>8.54858e-06</motorConstant>
         <momentConstant>0.01</momentConstant>
         <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>
-        <motorNumber>4</motorNumber>
+        <motorNumber>2</motorNumber>
         <rotorDragCoefficient>8.06428e-05</rotorDragCoefficient>
         <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
         <motorSpeedPubTopic>/motor_speed/4</motorSpeedPubTopic>
@@ -950,7 +950,7 @@
         <motorSpeedCommandPubTopic>/gazebo/command/motor_speed</motorSpeedCommandPubTopic>
         <control_channels>
           <channel name='rudder'>
-            <input_index>4</input_index>
+            <input_index>3</input_index>
             <input_offset>0</input_offset>
             <input_scaling>1</input_scaling>
             <zero_position_disarmed>0</zero_position_disarmed>
@@ -959,7 +959,7 @@
             <joint_name>rudder_joint</joint_name>
           </channel>
           <channel name='rotor4'>
-            <input_index>3</input_index>
+            <input_index>2</input_index>
             <input_offset>0</input_offset>
             <input_scaling>3500</input_scaling>
             <zero_position_disarmed>0</zero_position_disarmed>
@@ -968,7 +968,7 @@
             <joint_name>rotor_puller_joint</joint_name>
           </channel>
           <channel name='left_elevon'>
-            <input_index>6</input_index>
+            <input_index>5</input_index>
             <input_offset>0</input_offset>
             <input_scaling>1</input_scaling>
             <zero_position_disarmed>0</zero_position_disarmed>
@@ -977,7 +977,7 @@
             <joint_name>left_elevon_joint</joint_name>
           </channel>
           <channel name='right_elevon'>
-            <input_index>1</input_index>
+            <input_index>0</input_index>
             <input_offset>0</input_offset>
             <input_scaling>1</input_scaling>
             <zero_position_disarmed>0</zero_position_disarmed>
@@ -986,7 +986,7 @@
             <joint_name>right_elevon_joint</joint_name>
           </channel>
           <channel name='elevator'>
-            <input_index>2</input_index>
+            <input_index>1</input_index>
             <input_offset>0</input_offset>
             <input_scaling>1</input_scaling>
             <zero_position_disarmed>0</zero_position_disarmed>
@@ -995,7 +995,7 @@
             <joint_name>elevator_joint</joint_name>
           </channel>
           <channel name='left_flap'>
-            <input_index>10</input_index>
+            <input_index>9</input_index>
             <input_offset>0</input_offset>
             <input_scaling>-1</input_scaling>
             <zero_position_disarmed>0</zero_position_disarmed>
@@ -1004,7 +1004,7 @@
             <joint_name>left_flap_joint</joint_name>
           </channel>
           <channel name='right_flap'>
-            <input_index>9</input_index>
+            <input_index>10</input_index>
             <input_offset>0</input_offset>
             <input_scaling>-1</input_scaling>
             <zero_position_disarmed>0</zero_position_disarmed>
@@ -1017,7 +1017,7 @@
       <static>0</static>
       <plugin name='gazebo_imu_plugin' filename='libgazebo_imu_plugin.so'>
         <robotNamespace/>
-        <linkName>plane/imu_link</linkName>
+        <linkName>gemini2/imu_link</linkName>
         <imuTopic>/imu</imuTopic>
         <gyroscopeNoiseDensity>0.0003394</gyroscopeNoiseDensity>
         <gyroscopeRandomWalk>3.8785e-05</gyroscopeRandomWalk>
@@ -1054,7 +1054,7 @@
           <wrench>0 0 0 0 -0 0</wrench>
         </link>
       </model>
-      <model name='plane'>
+      <model name='gemini2'>
         <pose frame=''>1.00103 0.979999 0.165113 -0 0.00048 -1e-06</pose>
         <scale>1 1 1</scale>
         <link name='airspeed::link'>
@@ -1093,7 +1093,7 @@
           <acceleration>0.000752 -0 0.000575 0 -0.011074 0</acceleration>
           <wrench>0 -0 0 0 -0 0</wrench>
         </link>
-        <link name='plane/imu_link'>
+        <link name='gemini2/imu_link'>
           <pose frame=''>1.00103 0.979999 0.165113 -0 0.00048 -1e-06</pose>
           <velocity>-0 -0 -1e-06 3e-05 -3e-06 -0</velocity>
           <acceleration>-0 0 -0 0.021211 0 -1e-05</acceleration>
