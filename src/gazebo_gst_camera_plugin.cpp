@@ -62,7 +62,6 @@ void GstCameraPlugin::startGstThread() {
     return;
   }
 
-
   GstElement* source = gst_element_factory_make("appsrc", nullptr);
   GstElement* queue = gst_element_factory_make("queue", nullptr);
   GstElement* converter  = gst_element_factory_make("videoconvert", nullptr);
@@ -97,7 +96,6 @@ void GstCameraPlugin::startGstThread() {
   // gzerr <<"width"<< this->width<<"\n";
   // gzerr <<"height"<< this->height<<"\n";
   // gzerr <<"rate"<< this->rate<<"\n";
-
 
   // Configure source element
   g_object_set(G_OBJECT(source), "caps",
@@ -211,7 +209,7 @@ void GstCameraPlugin::Load(sensors::SensorPtr sensor, sdf::ElementPtr sdf)
 #endif
 
  if (!isfinite(this->rate)) {
-   this->rate =  30.0;
+   this->rate =  60.0;
  }
 
   if (sdf->HasElement("robotNamespace"))

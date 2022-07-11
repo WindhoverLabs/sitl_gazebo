@@ -23,16 +23,10 @@
 #include "gazebo/sensors/DepthCameraSensor.hh"
 #include "gazebo_opticalflow_plugin.h"
 
-
 #include <math.h>
 #include <string>
 #include <iostream>
 #include <boost/algorithm/string.hpp>
-#include <sys/socket.h>
-
-//debug
-#include <typeinfo>
-#include <iostream>
 
 using namespace cv;
 using namespace std;
@@ -99,7 +93,6 @@ void OpticalFlowPlugin::Load(sensors::SensorPtr _sensor, sdf::ElementPtr _sdf)
 
   focal_length_ = (this->width/2)/tan(hfov_/2);
 
-
   if (this->width != 64 || this->height != 64) {
     gzerr << "[gazebo_optical_flow_plugin] Incorrect image size, must by 64 x 64.\n";
   }
@@ -145,16 +138,7 @@ void OpticalFlowPlugin::Load(sensors::SensorPtr _sensor, sdf::ElementPtr _sdf)
 
   this->parentSensor->SetActive(true);
 
-  // Initialize UDP Socket
-  if ((this->file_desc = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
-	  gzerr << "[FLOW] - udp socket cannot be created."<<"\n";
-  }
-  memset((char *)&this->myaddr, 0, sizeof(this->myaddr));
-
-  this->myaddr.sin_family = AF_INET;
-  this->myaddr.sin_addr.s_addr = inet_addr(HOST);
-  this->myaddr.sin_port = htons(PORT);
-
+  //init flow
   optical_flow_ = new OpticalFlowOpenCV(focal_length_, focal_length_, output_rate_);
   // _optical_flow = new OpticalFlowPX4(focal_length_, focal_length_, output_rate_, this->width);
 }
@@ -167,7 +151,7 @@ void OpticalFlowPlugin::OnNewFrame(const unsigned char * _image,
                               const std::string &_format)
 {
 
-	//get data depending on gazebo version
+  //get data depending on gazebo version
   #if GAZEBO_MAJOR_VERSION >= 7
     _image = this->camera->ImageData(0);
     double frame_time = this->camera->LastRenderWallTime().Double();
@@ -175,14 +159,6 @@ void OpticalFlowPlugin::OnNewFrame(const unsigned char * _image,
     _image = this->camera->GetImageData(0);
     double frame_time = this->camera->GetLastRenderWallTime().Double();
   #endif
-
-   // Serve fame over UDP
-   int status =sendto(this->file_desc, _image, (_width*_height*_depth), 0, (struct sockaddr *)&this->myaddr, sizeof(this->myaddr));
-   if(status < 0)
-   {
-	   gzerr << "[FLOW] - unable to send frame."<<"\n";
-   }
-
 
   frame_time_us_ = (frame_time - first_frame_time_) * 1e6; //since start
 
@@ -220,7 +196,7 @@ void OpticalFlowPlugin::OnNewFrame(const unsigned char * _image,
     opticalFlow_message.set_temperature(20.0f);
     opticalFlow_message.set_quality(quality);
     opticalFlow_message.set_time_delta_distance_us(0);
-    opticalFlow_message.set_distance(0.0f); //get real values in gazebo_mavlink_interface.cpp  gzerr<<"TIME :   "<< sensor_msg.time_usec <<"  \n";
+    opticalFlow_message.set_distance(0.0f); //get real values in gazebo_mavlink_interface.cpp
     //send message
     opticalFlow_pub_->Publish(opticalFlow_message);
   }

@@ -666,7 +666,6 @@ void GazeboMavlinkInterface::ImuCallback(ImuPtr& imu_message)
   last_imu_message_cond_.notify_one();
 }
 
-
 void GazeboMavlinkInterface::SendSensorMessages()
 {
   ignition::math::Quaterniond q_gr = ignition::math::Quaterniond(
