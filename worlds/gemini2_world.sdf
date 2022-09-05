@@ -108,14 +108,14 @@
       <frameId>base_link</frameId>
       <robotNamespace/>
       <windVelocityMean>1.0</windVelocityMean>
-      <windVelocityMax>2.5</windVelocityMax>
+      <windVelocityMax>1.0</windVelocityMax>
       <windVelocityVariance>1</windVelocityVariance>
       <windDirectionMean>0 1 0</windDirectionMean>
       <windDirectionVariance>1</windDirectionVariance>
       <windGustStart>0</windGustStart>
       <windGustDuration>0</windGustDuration>
       <windGustVelocityMean>0</windGustVelocityMean>
-      <windGustVelocityMax>2.0</windGustVelocityMax>
+      <windGustVelocityMax>1.0</windGustVelocityMax>
       <windGustVelocityVariance>1</windGustVelocityVariance>
       <windGustDirectionMean>1 0 0</windGustDirectionMean>
       <windGustDirectionVariance>1</windGustDirectionVariance>
